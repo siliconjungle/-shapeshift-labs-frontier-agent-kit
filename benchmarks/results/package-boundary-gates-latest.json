@@ -1,0 +1,96 @@
+{
+  "name": "package-boundary-gates",
+  "generatedAt": "2026-05-29T03:17:02.852Z",
+  "node": "v26.1.0",
+  "rows": [
+    {
+      "category": "package-boundary",
+      "fixture": "export-.",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/index.js",
+      "typesPath": "./dist/index.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "export-./frontier",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/frontier.js",
+      "typesPath": "./dist/frontier.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "export-./logging",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/logging.js",
+      "typesPath": "./dist/logging.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "export-./playwright",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/playwright.js",
+      "typesPath": "./dist/playwright.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "export-./dom",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/dom.js",
+      "typesPath": "./dist/dom.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "export-./evidence",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/evidence.js",
+      "typesPath": "./dist/evidence.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "export-./node",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/node.js",
+      "typesPath": "./dist/node.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "export-./package-map",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "importPath": "./dist/package-map.js",
+      "typesPath": "./dist/package-map.d.ts"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "root-no-node-runtime-imports",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "root-no-optional-frontier-imports",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "frontier-package-map-count",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok"
+    },
+    {
+      "category": "package-boundary",
+      "fixture": "npm-pack-dry-run",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "unpackedBytes": 166343
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "topic": "frontier-agent-kit",
+  "sources": [
+    {
+      "name": "frontier-package-family",
+      "type": "inline",
+      "text": "Frontier release-train catalog, package READMEs, package.json exports, and package-boundary rules define the integration map for Frontier Agent Kit.",
+      "fileName": "frontier-package-family.txt"
+    },
+    {
+      "name": "evidence-kit",
+      "type": "git",
+      "url": "https://github.com/siliconjungle/-shapeshift-labs-evidence-kit.git",
+      "ref": "main"
+    }
+  ]
+}
+

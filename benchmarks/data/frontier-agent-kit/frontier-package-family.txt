@@ -1,0 +1,1 @@
+Frontier release-train catalog, package READMEs, package.json exports, and package-boundary rules define the integration map for Frontier Agent Kit.

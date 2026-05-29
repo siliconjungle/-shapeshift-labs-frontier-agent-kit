@@ -1,0 +1,79 @@
+{
+  "name": "startup-import",
+  "generatedAt": "2026-05-29T03:16:26.684Z",
+  "node": "v26.1.0",
+  "rows": [
+    {
+      "category": "startup",
+      "fixture": "root",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 954.08,
+      "p95Us": 954.08,
+      "budgetUs": 50000
+    },
+    {
+      "category": "startup",
+      "fixture": "frontier",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 787.92,
+      "p95Us": 787.92,
+      "budgetUs": 50000
+    },
+    {
+      "category": "startup",
+      "fixture": "logging",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 231.83,
+      "p95Us": 231.83,
+      "budgetUs": 50000
+    },
+    {
+      "category": "startup",
+      "fixture": "playwright",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 273.12,
+      "p95Us": 273.12,
+      "budgetUs": 50000
+    },
+    {
+      "category": "startup",
+      "fixture": "dom",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 204.33,
+      "p95Us": 204.33,
+      "budgetUs": 50000
+    },
+    {
+      "category": "startup",
+      "fixture": "evidence",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 167.21,
+      "p95Us": 167.21,
+      "budgetUs": 50000
+    },
+    {
+      "category": "startup",
+      "fixture": "package-map",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 257.08,
+      "p95Us": 257.08,
+      "budgetUs": 50000
+    },
+    {
+      "category": "startup",
+      "fixture": "node",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 676.42,
+      "p95Us": 676.42,
+      "budgetUs": 50000
+    }
+  ]
+}

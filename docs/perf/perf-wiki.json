@@ -1,0 +1,388 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-29T03:16:29.880Z",
+  "projectName": "@shapeshift-labs/frontier-agent-kit",
+  "noteCount": 2,
+  "benchmarkRowCount": 26,
+  "benchmarkFixtureCount": 26,
+  "notes": [
+    {
+      "kind": "iteration",
+      "title": "Bootstrap Frontier Agent Kit",
+      "sourcePath": "iterations/000-bootstrap-frontier-agent-kit.md",
+      "verdict": "accepted",
+      "tags": [
+        "iteration",
+        "bootstrap",
+        "ai",
+        "evidence",
+        "package-boundary",
+        "startup",
+        "fuzzing",
+        "benchmark"
+      ],
+      "decision": "Bootstrapped Frontier Agent Kit as a standalone package above the Frontier family, with structural adapters and an Evidence Kit-compatible harness.",
+      "summary": "## Goal",
+      "artifacts": [
+        "benchmarks/agent-kit-benchmark.mjs",
+        "benchmarks/package-boundary-gates.mjs",
+        "benchmarks/startup-import.mjs",
+        "src/dom.ts",
+        "src/evidence.ts",
+        "src/frontier.ts",
+        "src/index.ts",
+        "src/logging.ts",
+        "src/node.ts",
+        "src/package-map.ts",
+        "src/playwright.ts",
+        "test/fuzz/agent-kit-fuzz.mjs",
+        "test/smoke.mjs",
+        "test/types.ts"
+      ]
+    },
+    {
+      "kind": "research",
+      "title": "Frontier Package Surface Review",
+      "sourcePath": "research/frontier-package-surfaces.md",
+      "verdict": "accepted",
+      "tags": [
+        "research",
+        "frontier-packages",
+        "package-boundary",
+        "ai",
+        "evidence",
+        "observability"
+      ],
+      "decision": "Frontier Agent Kit should stay above the package family as a feature-run and evidence envelope. Root imports stay dependency-light; package-specific integrations remain structural subpaths.",
+      "summary": "The package map was reviewed against `config/release-train.json`, local package READMEs, local `package.json` exports, and available standalone repositories under `/Users/james/Documents`.",
+      "artifacts": [
+        "benchmarks/agent-kit-benchmark.mjs",
+        "benchmarks/package-boundary-gates.mjs",
+        "benchmarks/startup-import.mjs",
+        "docs/search",
+        "src/package-map.ts",
+        "test/smoke.mjs",
+        "test/types.ts"
+      ]
+    }
+  ],
+  "benchmarkMap": {
+    "rowCount": 26,
+    "fixtures": [
+      {
+        "category": "agent-kit",
+        "fixture": "create-feature-run-1000",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "jsonl-export-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "log-records-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "record-steps-and-evidence-1000",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "redact-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "summarize-patch-1000-ops",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-.",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-./dom",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-./evidence",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-./frontier",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-./logging",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-./node",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-./package-map",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "export-./playwright",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "frontier-package-map-count",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "npm-pack-dry-run",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "root-no-node-runtime-imports",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "package-boundary",
+        "fixture": "root-no-optional-frontier-imports",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/package-boundary-gates-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "dom",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "evidence",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "frontier",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "logging",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "node",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "package-map",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "playwright",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "startup",
+        "fixture": "root",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/startup-import-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      }
+    ]
+  },
+  "researchRegistry": [
+    {
+      "name": "frontier-agent-kit",
+      "aliases": [],
+      "npmScript": "research:frontier-agent-kit:fetch",
+      "command": "node benchmarks/fetch-frontier-agent-kit-research.mjs",
+      "fetchScript": "benchmarks/fetch-frontier-agent-kit-research.mjs",
+      "notePaths": [],
+      "sourceConfigs": [
+        "research/frontier-agent-kit-sources.json"
+      ],
+      "manifestPaths": [
+        "research/repos/frontier-agent-kit/manifest.json"
+      ]
+    },
+    {
+      "name": "frontier-package-surfaces",
+      "aliases": [],
+      "npmScript": null,
+      "command": null,
+      "fetchScript": null,
+      "notePaths": [
+        "research/frontier-package-surfaces.md"
+      ],
+      "sourceConfigs": [],
+      "manifestPaths": []
+    }
+  ]
+}

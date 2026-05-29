@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-29T03:16:29.569Z",
+  "node": "v26.1.0",
+  "groups": {
+    "correctness": {
+      "description": "Files that affect unit, integration, and fuzz correctness.",
+      "hash": "aa0a2482de0932c5e652dbf2ac99c609c6431fff7c8b89f8f1fd8f4d34663401",
+      "files": [
+        "src/dom.ts",
+        "src/evidence.ts",
+        "src/frontier.ts",
+        "src/index.ts",
+        "src/logging.ts",
+        "src/node.ts",
+        "src/package-map.ts",
+        "src/playwright.ts",
+        "src/types.ts",
+        "test/fixtures/corpus.json",
+        "test/fuzz/agent-kit-fuzz.mjs",
+        "test/smoke.mjs",
+        "test/types.ts"
+      ]
+    },
+    "performance": {
+      "description": "Files that affect local benchmark behavior.",
+      "hash": "854cb4b9a12b064e50c4b21038dfd139748c4f429706e449ad79ffbaa3338f4b",
+      "files": [
+        "benchmarks/agent-kit-benchmark.mjs",
+        "benchmarks/data/frontier-agent-kit/frontier-package-family.txt",
+        "benchmarks/fetch-frontier-agent-kit-research.mjs",
+        "benchmarks/package-boundary-gates.mjs",
+        "benchmarks/startup-import.mjs",
+        "src/dom.ts",
+        "src/evidence.ts",
+        "src/frontier.ts",
+        "src/index.ts",
+        "src/logging.ts",
+        "src/node.ts",
+        "src/package-map.ts",
+        "src/playwright.ts",
+        "src/types.ts"
+      ]
+    },
+    "evidence-docs": {
+      "description": "Evidence notes and generated perf documentation.",
+      "hash": "37b30b171ae6ac0789b130e8ee72b2e278e78cc285f1e303716901709a3ee36e",
+      "files": [
+        "docs/perf/.gitkeep",
+        "docs/perf/index.html",
+        "docs/perf/perf-wiki.json",
+        "iterations/000-bootstrap-frontier-agent-kit.md",
+        "research/frontier-agent-kit-sources.json",
+        "research/frontier-package-surfaces.md",
+        "research/repos/.gitkeep",
+        "research/repos/frontier-agent-kit/evidence-kit/LICENSE",
+        "research/repos/frontier-agent-kit/evidence-kit/README.md",
+        "research/repos/frontier-agent-kit/evidence-kit/package.json",
+        "research/repos/frontier-agent-kit/evidence-kit/schemas/benchmark-result.schema.json",
+        "research/repos/frontier-agent-kit/evidence-kit/schemas/corpus-case.schema.json",
+        "research/repos/frontier-agent-kit/evidence-kit/schemas/iteration-note.schema.json",
+        "research/repos/frontier-agent-kit/evidence-kit/schemas/research-manifest.schema.json",
+        "research/repos/frontier-agent-kit/evidence-kit/schemas/research-sources.schema.json",
+        "research/repos/frontier-agent-kit/evidence-kit/scripts/evidence-kit.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/benchmark-guardian/SKILL.md",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/benchmark-guardian/agents/openai.yaml",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/evidence-bootstrap/SKILL.md",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/evidence-bootstrap/agents/openai.yaml",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/fuzz-harness-builder/SKILL.md",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/fuzz-harness-builder/agents/openai.yaml",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/package-boundary-guardian/SKILL.md",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/package-boundary-guardian/agents/openai.yaml",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/perf-wiki-builder/SKILL.md",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/perf-wiki-builder/agents/openai.yaml",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/source-pass-harvester/SKILL.md",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/source-pass-harvester/agents/openai.yaml",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/target-evidence-designer/SKILL.md",
+        "research/repos/frontier-agent-kit/evidence-kit/skills/target-evidence-designer/agents/openai.yaml",
+        "research/repos/frontier-agent-kit/evidence-kit/src/cli.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/src/index.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/fetch-research.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/iteration-note.md",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/js/benchmark.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/js/fuzzer.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/package-boundary-gates.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/research-note.md",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/source-sources.json",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/startup-import.mjs",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/ts/benchmark.ts",
+        "research/repos/frontier-agent-kit/evidence-kit/templates/ts/fuzzer.ts",
+        "research/repos/frontier-agent-kit/evidence-kit/test/evidence-kit.test.mjs",
+        "research/repos/frontier-agent-kit/manifest.json"
+      ]
+    },
+    "package-shape": {
+      "description": "Package metadata, lockfiles, and TypeScript configuration.",
+      "hash": "ceec24d8167f21acd0df3759afb4c840e827ee2546fc0c3847bdfb454ed68373",
+      "files": [
+        "package-lock.json",
+        "package.json",
+        "tsconfig.json"
+      ]
+    }
+  }
+}

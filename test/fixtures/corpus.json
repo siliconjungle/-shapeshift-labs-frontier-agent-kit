@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "generatedBy": "@shapeshift-labs/frontier-agent-kit",
+  "cases": [
+    {
+      "id": "todo-observable-flow",
+      "manifest": {
+        "id": "feature.todo.complete",
+        "title": "Complete todo item",
+        "summary": "Exercise state, DOM, Playwright, logging, and gate evidence for a simple feature.",
+        "packages": [
+          {
+            "name": "@shapeshift-labs/frontier",
+            "surface": "patch"
+          },
+          {
+            "name": "@shapeshift-labs/frontier-dom",
+            "surface": "devtools"
+          },
+          {
+            "name": "@shapeshift-labs/frontier-playwright",
+            "surface": "ai-session"
+          }
+        ],
+        "acceptance": [
+          {
+            "id": "todo-state-updated",
+            "source": "state",
+            "query": "/todos/0/done",
+            "expected": true
+          }
+        ],
+        "gates": [
+          {
+            "id": "unit",
+            "command": "npm test",
+            "required": true
+          }
+        ]
+      }
+    }
+  ]
+}
+

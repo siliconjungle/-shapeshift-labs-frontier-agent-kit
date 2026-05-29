@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.tgz
+benchmarks/results/*.tmp.json
+agent-runs/*.local.json
+agent-runs/*.local.jsonl
+research/repos/*
+!research/repos/.gitkeep
+
