@@ -4,9 +4,13 @@ import { performance } from 'node:perf_hooks';
 import {
   createFeatureRun,
   featureRunToJsonl,
+  featureRunToMarkdownReport,
+  iterateFeatureRunJsonlRecords,
+  planFeatureRun,
   recordEvidence,
   recordFeatureStep,
-  redactFeatureRun
+  redactFeatureRun,
+  reviewFeatureRun
 } from '../dist/index.js';
 import { summarizeFrontierPatch } from '../dist/frontier.js';
 import { featureRunToLogRecords } from '../dist/logging.js';
@@ -38,6 +42,30 @@ const rows = [
   bench('log-records-1000-events', rounds, () => {
     const run = createFixtureRun(4, 1000);
     featureRunToLogRecords(run);
+  }),
+  bench('review-run-1000-events', rounds, () => {
+    const run = createFixtureRun(5, 1000);
+    reviewFeatureRun(run);
+  }),
+  bench('markdown-report-1000-events', rounds, () => {
+    const run = createFixtureRun(6, 1000);
+    featureRunToMarkdownReport(run);
+  }),
+  bench('jsonl-record-iterator-1000-events', rounds, () => {
+    const run = createFixtureRun(7, 1000);
+    let count = 0;
+    for (const _record of iterateFeatureRunJsonlRecords(run)) count++;
+    if (count !== 1001) throw new Error('bad record count');
+  }),
+  bench('plan-feature-run-1000', rounds, () => {
+    for (let i = 0; i < 1000; i++) {
+      planFeatureRun({
+        id: 'feature.plan.' + i,
+        title: 'Plan feature ' + i,
+        packages: [{ name: '@shapeshift-labs/frontier-playwright' }],
+        gates: [{ id: 'unit', command: 'npm test', required: true }]
+      });
+    }
   }),
   bench('summarize-patch-1000-ops', rounds, () => {
     const patch = Array.from({ length: 1000 }, (_, i) => [0, ['rows', i, 'value'], i]);

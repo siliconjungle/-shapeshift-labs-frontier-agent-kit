@@ -7,13 +7,19 @@ import {
   assessFeatureRun,
   createFeatureRun,
   featureRunFromJsonl,
+  featureRunReviewToMarkdown,
   featureRunToJsonl,
+  featureRunToMarkdownReport,
+  finishFeatureRun,
+  iterateFeatureRunJsonlRecords,
+  planFeatureRun,
   listFrontierPackageSurfaces,
   queryFeatureEvidence,
   recordEvidence,
   recordFeatureStep,
   recordGateResult,
-  redactFeatureRun
+  redactFeatureRun,
+  reviewFeatureRun
 } from '../dist/index.js';
 import { createFeatureEvidenceManifest, createFrontierAgentEvidencePlan } from '../dist/evidence.js';
 import { summarizeFrontierPatch } from '../dist/frontier.js';
@@ -24,6 +30,7 @@ import {
   initFrontierAgentWorkspace,
   inspectFrontierAgentWorkspace,
   readFeatureManifestFile,
+  runCli,
   writeFeatureRunJsonlFile
 } from '../dist/node.js';
 
@@ -99,11 +106,24 @@ test('records a feature run across Frontier evidence surfaces', () => {
     required: true,
     durationMs: 42
   });
+  run = finishFeatureRun(run, undefined, 1011);
 
   assert.equal(assessFeatureRun(run), 'passed');
   assert.equal(run.summary.evidenceCount, 4);
   assert.ok(run.summary.packages.includes('@shapeshift-labs/frontier-dom'));
 
+  const plan = planFeatureRun(manifest, 2000);
+  assert.ok(plan.requiredEvidenceKinds.includes('frontier.playwright.report'));
+  assert.ok(plan.steps.some((step) => step.kind === 'gate' && step.command === 'npm test'));
+
+  const review = reviewFeatureRun(run, 3000);
+  assert.equal(review.ready, true);
+  assert.equal(review.findings.filter((finding) => finding.severity === 'error').length, 0);
+  assert.match(featureRunReviewToMarkdown(review), /Feature Run Review/);
+  assert.match(featureRunToMarkdownReport(run), /Frontier Feature Run/);
+
+  const jsonlRecords = [...iterateFeatureRunJsonlRecords(run)];
+  assert.equal(jsonlRecords.length, 1 + run.steps.length + run.evidence.length + run.checkpoints.length + run.gates.length);
   const jsonl = featureRunToJsonl(run);
   const restored = featureRunFromJsonl(jsonl);
   assert.equal(restored.id, run.id);
@@ -117,11 +137,31 @@ test('records a feature run across Frontier evidence surfaces', () => {
   assert.equal(secret.data.token, '[redacted]');
   assert.equal(secret.data.nested.password, '[redacted]');
 
-  const records = featureRunToLogRecords(run);
-  assert.ok(records.some((record) => record.name === 'frontier.agent.run.summary'));
+  const logRecords = featureRunToLogRecords(run);
+  assert.ok(logRecords.some((record) => record.name === 'frontier.agent.run.summary'));
 });
 
-test('exposes all Frontier package surfaces and workspace helpers', () => {
+test('review finds missing gates and undeclared writes', () => {
+  let run = createFeatureRun({
+    id: 'feature.review.findings',
+    title: 'Review findings',
+    packages: [{ name: '@shapeshift-labs/frontier' }],
+    state: [{ id: 'declared', path: ['todos'] }],
+    gates: [{ id: 'unit', command: 'npm test', required: true }]
+  }, { runId: 'review-run' });
+  run = recordFeatureStep(run, {
+    title: 'write outside declaration',
+    status: 'passed',
+    writes: [['settings', 'theme']]
+  });
+  const review = reviewFeatureRun(run);
+  assert.equal(review.ready, false);
+  assert.ok(review.findings.some((finding) => finding.kind === 'path'));
+  assert.ok(review.findings.some((finding) => finding.kind === 'gate' && finding.severity === 'error'));
+  assert.ok(review.nextActions.length > 0);
+});
+
+test('exposes all Frontier package surfaces and workspace helpers', async () => {
   const surfaces = listFrontierPackageSurfaces();
   assert.equal(surfaces.length, 28);
   assert.ok(surfaces.some((surface) => surface.id === 'frontier-playwright' && surface.surfaces.includes('ai-session')));
@@ -146,6 +186,12 @@ test('exposes all Frontier package surfaces and workspace helpers', () => {
   const run = createFeatureRun(manifest, { runId: 'workspace-run' });
   writeFeatureRunJsonlFile(path.join(dir, 'agent-runs/workspace-run.jsonl'), run);
   assert.ok(fs.existsSync(path.join(dir, 'agent-runs/workspace-run.jsonl')));
+
+  const planResult = await withConsoleSilenced(() => runCli(['plan', 'features/example-feature.json', '--cwd', dir, '--json'], process.cwd()));
+  assert.equal(planResult.status, 0);
+  assert.equal(planResult.output.featureId, 'feature.example');
+  const validateResult = await withConsoleSilenced(() => runCli(['validate-manifest', 'features/example-feature.json', '--cwd', dir, '--json'], process.cwd()));
+  assert.equal(validateResult.status, 0);
 });
 
 test('summarizes DOM devtools snapshots', () => {
@@ -161,3 +207,12 @@ test('summarizes DOM devtools snapshots', () => {
   assert.equal(summary.hydrationIssueCount, 1);
 });
 
+async function withConsoleSilenced(callback) {
+  const originalLog = console.log;
+  try {
+    console.log = () => {};
+    return await callback();
+  } finally {
+    console.log = originalLog;
+  }
+}

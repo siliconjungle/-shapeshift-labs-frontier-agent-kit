@@ -3,10 +3,13 @@ import {
   createFeatureRun,
   featureRunFromJsonl,
   featureRunToJsonl,
+  iterateFeatureRunJsonlRecords,
+  planFeatureRun,
   queryFeatureEvidence,
   recordEvidence,
   recordFeatureStep,
-  redactFeatureRun
+  redactFeatureRun,
+  reviewFeatureRun
 } from '../../dist/index.js';
 
 const args = parseArgs(process.argv.slice(2));
@@ -15,12 +18,15 @@ let seed = Number(args.seed ?? 123456789);
 
 for (let i = 0; i < cases; i++) {
   const id = 'feature.fuzz.' + i;
-  let run = createFeatureRun({
+  const manifest = {
     id,
     title: 'Fuzz feature ' + i,
     packages: [{ name: pickPackage() }],
     gates: [{ id: 'test', command: 'npm test', required: true }]
-  }, { runId: 'run-' + i, now: () => i + 1 });
+  };
+  const plan = planFeatureRun(manifest);
+  assert.ok(plan.steps.length >= 4);
+  let run = createFeatureRun(manifest, { runId: 'run-' + i, now: () => i + 1 });
   const stepCount = 1 + randInt(5);
   for (let step = 0; step < stepCount; step++) {
     run = recordFeatureStep(run, {
@@ -44,6 +50,7 @@ for (let i = 0; i < cases; i++) {
     data: { ok: true, values: Array.from({ length: randInt(8) }, () => randInt(50)) }
   });
   const jsonl = featureRunToJsonl(run);
+  assert.equal([...iterateFeatureRunJsonlRecords(run)].length, 1 + run.steps.length + run.evidence.length + run.checkpoints.length + run.gates.length);
   const restored = featureRunFromJsonl(jsonl);
   assert.equal(restored.id, run.id);
   assert.equal(restored.steps.length, run.steps.length);
@@ -52,6 +59,8 @@ for (let i = 0; i < cases; i++) {
   const event = queryFeatureEvidence(redacted, { kind: 'fuzz.event' })[0];
   assert.equal(event.data.token, '[redacted]');
   assert.equal(event.data.nested.password, '[redacted]');
+  const review = reviewFeatureRun(restored);
+  assert.ok(review.findings.length >= 1);
 }
 
 console.log('agent-kit fuzz passed cases=' + cases + ' seed=' + Number(args.seed ?? 123456789));
@@ -80,4 +89,3 @@ function parseArgs(argv) {
   }
   return out;
 }
-

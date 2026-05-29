@@ -256,6 +256,73 @@ export interface FeatureRunSummary {
   readonly warnings: readonly string[];
 }
 
+export type FeatureRunPlanStepKind =
+  | 'inspect'
+  | 'checkpoint'
+  | 'implement'
+  | 'observe'
+  | 'gate'
+  | 'review';
+
+export interface FeatureRunPlanStep {
+  readonly id: string;
+  readonly kind: FeatureRunPlanStepKind;
+  readonly title: string;
+  readonly required: boolean;
+  readonly package?: string;
+  readonly command?: string;
+  readonly evidenceKind?: string;
+  readonly reads: readonly string[];
+  readonly writes: readonly string[];
+  readonly description?: string;
+}
+
+export interface FeatureRunPlan {
+  readonly kind: 'frontier.agent.feature-plan';
+  readonly version: 1;
+  readonly featureId: string;
+  readonly title: string;
+  readonly generatedAt: number;
+  readonly packages: readonly string[];
+  readonly steps: readonly FeatureRunPlanStep[];
+  readonly gates: readonly FeatureGate[];
+  readonly requiredEvidenceKinds: readonly string[];
+  readonly warnings: readonly string[];
+}
+
+export type FeatureRunReviewSeverity = 'info' | 'warning' | 'error';
+export type FeatureRunReviewFindingKind =
+  | 'manifest'
+  | 'package'
+  | 'path'
+  | 'evidence'
+  | 'gate'
+  | 'status';
+
+export interface FeatureRunReviewFinding {
+  readonly id: string;
+  readonly severity: FeatureRunReviewSeverity;
+  readonly kind: FeatureRunReviewFindingKind;
+  readonly message: string;
+  readonly stepId?: string;
+  readonly gateId?: string;
+  readonly package?: string;
+  readonly path?: string;
+}
+
+export interface FeatureRunReview {
+  readonly kind: 'frontier.agent.review';
+  readonly version: 1;
+  readonly runId: string;
+  readonly featureId: string;
+  readonly status: FeatureRunStatus;
+  readonly ready: boolean;
+  readonly generatedAt: number;
+  readonly summary: FeatureRunSummary;
+  readonly findings: readonly FeatureRunReviewFinding[];
+  readonly nextActions: readonly string[];
+}
+
 export interface FeatureRun {
   readonly kind: 'frontier.agent.feature-run';
   readonly version: 1;

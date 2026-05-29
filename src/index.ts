@@ -14,6 +14,10 @@ import type {
   FeatureRun,
   FeatureRunContext,
   FeatureRunJsonlRecord,
+  FeatureRunPlan,
+  FeatureRunPlanStep,
+  FeatureRunReview,
+  FeatureRunReviewFinding,
   FeatureRunStatus,
   FeatureRunSummary,
   FeatureStep,
@@ -55,6 +59,7 @@ export interface FeatureRunQuery {
 }
 
 const DEFAULT_REDACT_VALUE = '[redacted]';
+const DECLARED_PATH_PREFIX_MATCH_DEPTH = 2;
 
 export function createFeatureRun(manifest: FeatureManifest, options: FeatureRunOptions = {}): FeatureRun {
   const validation = validateFeatureManifest(manifest);
@@ -210,6 +215,227 @@ export function assessFeatureRun(run: FeatureRun): FeatureRunStatus {
   return 'passed';
 }
 
+export function planFeatureRun(manifest: FeatureManifest, now: number = Date.now()): FeatureRunPlan {
+  const validation = validateFeatureManifest(manifest);
+  const normalized = normalizeFeatureManifest(manifest);
+  const packages = (normalized.packages ?? []).map((pkg) => pkg.name).sort();
+  const declaredReads = [
+    ...(normalized.state ?? []).map((state) => pathToString(state.path)),
+    ...(normalized.queries ?? []).flatMap((query) => query.selector ? [pathToString(query.selector)] : [])
+  ];
+  const declaredWrites = [
+    ...(normalized.actions ?? []).flatMap((action) => action.writes ?? []).map(pathToString),
+    ...(normalized.state ?? []).map((state) => pathToString(state.path))
+  ];
+  const requiredEvidenceKinds = requiredEvidenceKindsForManifest(normalized);
+  const steps: FeatureRunPlanStep[] = [
+    {
+      id: 'inspect-manifest',
+      kind: 'inspect',
+      title: 'Inspect feature manifest and package boundaries',
+      required: true,
+      reads: declaredReads,
+      writes: [],
+      description: 'Confirm packages, state/query/action/UI surfaces, acceptance criteria, and gates before editing.'
+    },
+    {
+      id: 'baseline-checkpoint',
+      kind: 'checkpoint',
+      title: 'Capture baseline state and visible evidence',
+      required: true,
+      evidenceKind: 'frontier.checkpoint',
+      reads: declaredReads,
+      writes: []
+    },
+    {
+      id: 'implement-feature',
+      kind: 'implement',
+      title: 'Apply feature change through declared Frontier surfaces',
+      required: true,
+      reads: declaredReads,
+      writes: declaredWrites
+    },
+    ...requiredEvidenceKinds.map((kind) => ({
+      id: 'observe-' + kind.replace(/[^a-z0-9]+/gi, '-'),
+      kind: 'observe' as const,
+      title: 'Capture ' + kind + ' evidence',
+      required: true,
+      evidenceKind: kind,
+      reads: declaredReads,
+      writes: []
+    })),
+    ...(normalized.gates ?? []).map((gate) => ({
+      id: 'gate-' + gate.id,
+      kind: 'gate' as const,
+      title: 'Run ' + gate.id,
+      required: gate.required !== false,
+      command: gate.command,
+      reads: [],
+      writes: [],
+      ...(gate.package ? { package: gate.package } : {}),
+      ...(gate.description ? { description: gate.description } : {})
+    })),
+    {
+      id: 'review-run',
+      kind: 'review',
+      title: 'Review run evidence and gate results',
+      required: true,
+      reads: declaredReads,
+      writes: []
+    }
+  ];
+  return {
+    kind: 'frontier.agent.feature-plan',
+    version: 1,
+    featureId: normalized.id,
+    title: normalized.title,
+    generatedAt: now,
+    packages,
+    steps,
+    gates: [...(normalized.gates ?? [])],
+    requiredEvidenceKinds,
+    warnings: validation.warnings
+  };
+}
+
+export function reviewFeatureRun(run: FeatureRun, now: number = Date.now()): FeatureRunReview {
+  const findings: FeatureRunReviewFinding[] = [];
+  const validation = validateFeatureManifest(run.manifest);
+  for (const error of validation.errors) findings.push(finding('manifest', 'error', error));
+  for (const warning of validation.warnings) findings.push(finding('manifest', 'warning', warning));
+
+  const declaredPackages = new Set((run.manifest.packages ?? []).map((pkg) => normalizePackageRef(pkg).name));
+  const observedPackages = new Set<string>();
+  for (const step of run.steps) for (const pkg of step.packages) observedPackages.add(normalizePackageRef(pkg).name);
+  for (const event of run.evidence) if (event.package) observedPackages.add(normalizeFrontierPackageName(event.package));
+  for (const pkg of observedPackages) {
+    if (declaredPackages.size > 0 && !declaredPackages.has(pkg)) {
+      findings.push(finding('package', 'warning', 'Observed undeclared package ' + pkg, { package: pkg }));
+    }
+  }
+
+  const declaredPaths = new Set<string>();
+  for (const state of run.manifest.state ?? []) declaredPaths.add(pathToString(state.path));
+  for (const action of run.manifest.actions ?? []) {
+    for (const read of action.reads ?? []) declaredPaths.add(pathToString(read));
+    for (const write of action.writes ?? []) declaredPaths.add(pathToString(write));
+  }
+  for (const step of run.steps) {
+    for (const write of step.writes) {
+      if (declaredPaths.size > 0 && !pathMatchesDeclared(write, declaredPaths)) {
+        findings.push(finding('path', 'warning', 'Step writes undeclared path ' + write, { stepId: step.id, path: write }));
+      }
+    }
+    if (step.status === 'failed') findings.push(finding('status', 'error', 'Step failed: ' + step.title, { stepId: step.id }));
+    if (step.status === 'blocked') findings.push(finding('status', 'warning', 'Step blocked: ' + step.title, { stepId: step.id }));
+    if (step.status === 'running') findings.push(finding('status', 'warning', 'Step is still running: ' + step.title, { stepId: step.id }));
+  }
+
+  const evidenceKinds = new Set(run.evidence.map((event) => event.kind));
+  for (const kind of requiredEvidenceKindsForManifest(run.manifest)) {
+    if (!evidenceKinds.has(kind)) findings.push(finding('evidence', 'warning', 'Missing expected evidence kind ' + kind));
+  }
+  for (const criterion of run.manifest.acceptance ?? []) {
+    if (criterion.required === false) continue;
+    if (!run.evidence.some((event) => event.source === criterion.source || event.kind.includes(criterion.source))) {
+      findings.push(finding('evidence', 'warning', 'No evidence found for acceptance criterion ' + criterion.id));
+    }
+  }
+
+  const gateResults = new Map(run.gates.map((gate) => [gate.id, gate]));
+  for (const gate of run.manifest.gates ?? []) {
+    if (gate.required === false) continue;
+    const result = gateResults.get(gate.id);
+    if (!result) {
+      findings.push(finding('gate', 'error', 'Missing required gate result ' + gate.id, { gateId: gate.id }));
+    } else if (result.status !== 'passed') {
+      findings.push(finding('gate', 'error', 'Required gate did not pass: ' + gate.id, { gateId: gate.id }));
+    }
+  }
+  for (const result of run.gates) {
+    if (result.status === 'failed' || result.status === 'missing') {
+      findings.push(finding('gate', result.required ? 'error' : 'warning', 'Gate ' + result.id + ' status is ' + result.status, { gateId: result.id }));
+    }
+  }
+
+  if (run.status === 'running') findings.push(finding('status', 'warning', 'Run has not been finished'));
+  const summary = summarizeFeatureRun(run);
+  const ready = findings.every((item) => item.severity !== 'error') && (run.status === 'passed' || run.status === 'needs-review');
+  return {
+    kind: 'frontier.agent.review',
+    version: 1,
+    runId: run.id,
+    featureId: run.manifest.id,
+    status: run.status,
+    ready,
+    generatedAt: now,
+    summary,
+    findings,
+    nextActions: nextActionsForFindings(findings, run)
+  };
+}
+
+export function featureRunReviewToMarkdown(review: FeatureRunReview): string {
+  const lines = [
+    '# Feature Run Review',
+    '',
+    '- Run: `' + review.runId + '`',
+    '- Feature: `' + review.featureId + '`',
+    '- Status: `' + review.status + '`',
+    '- Ready: `' + String(review.ready) + '`',
+    '- Steps: `' + review.summary.stepCount + '`',
+    '- Evidence: `' + review.summary.evidenceCount + '`',
+    '- Gates: `' + review.summary.gateCount + '`',
+    ''
+  ];
+  if (review.findings.length === 0) {
+    lines.push('## Findings', '', 'No findings.');
+  } else {
+    lines.push('## Findings', '');
+    for (const item of review.findings) {
+      lines.push('- `' + item.severity + '` `' + item.kind + '` ' + item.message);
+    }
+  }
+  if (review.nextActions.length > 0) {
+    lines.push('', '## Next Actions', '');
+    for (const action of review.nextActions) lines.push('- ' + action);
+  }
+  return lines.join('\n') + '\n';
+}
+
+export function featureRunToMarkdownReport(run: FeatureRun): string {
+  const review = reviewFeatureRun(run);
+  const lines = [
+    '# Frontier Feature Run',
+    '',
+    '- Run: `' + run.id + '`',
+    '- Feature: `' + run.manifest.id + '`',
+    '- Title: ' + run.manifest.title,
+    '- Status: `' + run.status + '`',
+    '- Started: `' + new Date(run.startedAt).toISOString() + '`',
+    ...(run.endedAt ? ['- Ended: `' + new Date(run.endedAt).toISOString() + '`'] : []),
+    '',
+    '## Packages',
+    '',
+    ...(run.summary.packages.length ? run.summary.packages.map((pkg) => '- `' + pkg + '`') : ['No packages recorded.']),
+    '',
+    '## Steps',
+    '',
+    ...(run.steps.length ? run.steps.map((step) => '- `' + step.status + '` `' + step.id + '` ' + step.title) : ['No steps recorded.']),
+    '',
+    '## Evidence',
+    '',
+    ...(run.evidence.length ? run.evidence.map((event) => '- `' + event.severity + '` `' + event.kind + '` ' + (event.summary ?? event.id)) : ['No evidence recorded.']),
+    '',
+    '## Gates',
+    '',
+    ...(run.gates.length ? run.gates.map((gate) => '- `' + gate.status + '` `' + gate.id + '` `' + gate.command + '`') : ['No gates recorded.']),
+    '',
+    featureRunReviewToMarkdown(review).trim()
+  ];
+  return lines.join('\n') + '\n';
+}
+
 export function summarizeFeatureRun(run: FeatureRun): FeatureRunSummary {
   const packageSet = new Set<string>();
   const pathSet = new Set<string>();
@@ -253,15 +479,14 @@ export function queryFeatureEvidence(run: FeatureRun, query: FeatureRunQuery): r
   });
 }
 
+export function iterateFeatureRunJsonlRecords(run: FeatureRun): IterableIterator<FeatureRunJsonlRecord> {
+  return featureRunJsonlRecordIterator(run);
+}
+
 export function featureRunToJsonl(run: FeatureRun): string {
-  const records: FeatureRunJsonlRecord[] = [
-    { kind: 'frontier.agent.run', runId: run.id, value: stripRunCollections(run) as unknown as JsonValue },
-    ...run.steps.map((value) => ({ kind: 'frontier.agent.step' as const, runId: run.id, value: value as unknown as JsonValue })),
-    ...run.evidence.map((value) => ({ kind: 'frontier.agent.evidence' as const, runId: run.id, value: value as unknown as JsonValue })),
-    ...run.checkpoints.map((value) => ({ kind: 'frontier.agent.checkpoint' as const, runId: run.id, value: value as unknown as JsonValue })),
-    ...run.gates.map((value) => ({ kind: 'frontier.agent.gate' as const, runId: run.id, value: value as unknown as JsonValue }))
-  ];
-  return records.map((record) => JSON.stringify(record)).join('\n') + '\n';
+  let out = '';
+  for (const record of iterateFeatureRunJsonlRecords(run)) out += JSON.stringify(record) + '\n';
+  return out;
 }
 
 export function featureRunFromJsonl(input: string): FeatureRun {
@@ -321,6 +546,83 @@ function normalizeFeatureManifest(manifest: FeatureManifest): FeatureManifest {
     ...manifest,
     ...(manifest.packages ? { packages: manifest.packages.map(normalizePackageRef) } : {})
   };
+}
+
+function requiredEvidenceKindsForManifest(manifest: FeatureManifest): readonly string[] {
+  const kinds = new Set<string>();
+  for (const pkg of manifest.packages ?? []) {
+    const name = normalizePackageRef(pkg).name;
+    if (name === '@shapeshift-labs/frontier') kinds.add('frontier.patch.summary');
+    if (name === '@shapeshift-labs/frontier-logging') kinds.add('frontier.agent.log-records');
+    if (name === '@shapeshift-labs/frontier-playwright') kinds.add('frontier.playwright.report');
+    if (name === '@shapeshift-labs/frontier-dom') kinds.add('frontier.dom.devtools');
+    if (name.includes('crdt')) kinds.add('frontier.crdt.checkpoint');
+    if (name.includes('state-cache')) kinds.add('frontier.cache.checkpoint');
+  }
+  for (const criterion of manifest.acceptance ?? []) {
+    if (criterion.source === 'state') kinds.add('frontier.checkpoint');
+    if (criterion.source === 'dom') kinds.add('frontier.dom.devtools');
+    if (criterion.source === 'playwright') kinds.add('frontier.playwright.report');
+    if (criterion.source === 'log') kinds.add('frontier.agent.log-records');
+    if (criterion.source === 'benchmark') kinds.add('frontier.benchmark');
+    if (criterion.source === 'test') kinds.add('frontier.gate');
+  }
+  return [...kinds].sort();
+}
+
+function finding(
+  kind: FeatureRunReviewFinding['kind'],
+  severity: FeatureRunReviewFinding['severity'],
+  message: string,
+  extra: Omit<FeatureRunReviewFinding, 'id' | 'kind' | 'severity' | 'message'> = {}
+): FeatureRunReviewFinding {
+  return {
+    id: createStableId('finding', kind, severity, message, extra),
+    kind,
+    severity,
+    message,
+    ...extra
+  };
+}
+
+function nextActionsForFindings(findings: readonly FeatureRunReviewFinding[], run: FeatureRun): readonly string[] {
+  const actions = new Set<string>();
+  for (const item of findings) {
+    if (item.kind === 'gate') actions.add('Run or fix required gates, then record updated gate results.');
+    if (item.kind === 'evidence') actions.add('Capture the missing evidence and attach it to the run.');
+    if (item.kind === 'path') actions.add('Update the feature manifest or constrain writes to declared paths.');
+    if (item.kind === 'package') actions.add('Declare observed packages in the feature manifest or remove unintended integration work.');
+    if (item.kind === 'status') actions.add('Finish or repair incomplete/failed steps before handoff.');
+    if (item.kind === 'manifest') actions.add('Fix manifest errors before using the run as review evidence.');
+  }
+  if (run.evidence.length === 0) actions.add('Attach at least one evidence event before review.');
+  return [...actions];
+}
+
+function pathMatchesDeclared(path: string, declaredPaths: ReadonlySet<string>): boolean {
+  if (declaredPaths.has(path)) return true;
+  const pathParts = path.split('/').filter(Boolean);
+  for (const declared of declaredPaths) {
+    const declaredParts = declared.split('/').filter(Boolean);
+    const depth = Math.min(DECLARED_PATH_PREFIX_MATCH_DEPTH, declaredParts.length, pathParts.length);
+    let matches = depth > 0;
+    for (let index = 0; index < depth; index++) {
+      if (declaredParts[index] !== pathParts[index]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}
+
+function* featureRunJsonlRecordIterator(run: FeatureRun): IterableIterator<FeatureRunJsonlRecord> {
+  yield { kind: 'frontier.agent.run', runId: run.id, value: stripRunCollections(run) as unknown as JsonValue };
+  for (const value of run.steps) yield { kind: 'frontier.agent.step', runId: run.id, value: value as unknown as JsonValue };
+  for (const value of run.evidence) yield { kind: 'frontier.agent.evidence', runId: run.id, value: value as unknown as JsonValue };
+  for (const value of run.checkpoints) yield { kind: 'frontier.agent.checkpoint', runId: run.id, value: value as unknown as JsonValue };
+  for (const value of run.gates) yield { kind: 'frontier.agent.gate', runId: run.id, value: value as unknown as JsonValue };
 }
 
 function withSummary(run: FeatureRun): FeatureRun {

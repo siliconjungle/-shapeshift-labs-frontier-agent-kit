@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-29T03:16:29.569Z",
+  "generatedAt": "2026-05-29T03:26:27.090Z",
   "node": "v26.1.0",
   "groups": {
     "correctness": {
       "description": "Files that affect unit, integration, and fuzz correctness.",
-      "hash": "aa0a2482de0932c5e652dbf2ac99c609c6431fff7c8b89f8f1fd8f4d34663401",
+      "hash": "9596913abbe6b1dc28394e223d19415ca24f0c5b9e5b809ab80d2dc49a8acdbe",
       "files": [
         "src/dom.ts",
         "src/evidence.ts",
@@ -24,7 +24,7 @@
     },
     "performance": {
       "description": "Files that affect local benchmark behavior.",
-      "hash": "854cb4b9a12b064e50c4b21038dfd139748c4f429706e449ad79ffbaa3338f4b",
+      "hash": "17c62965ae93bc2891f68f11f00ad27967789f8f24127d1db23c6c74ed667304",
       "files": [
         "benchmarks/agent-kit-benchmark.mjs",
         "benchmarks/data/frontier-agent-kit/frontier-package-family.txt",
@@ -44,12 +44,13 @@
     },
     "evidence-docs": {
       "description": "Evidence notes and generated perf documentation.",
-      "hash": "37b30b171ae6ac0789b130e8ee72b2e278e78cc285f1e303716901709a3ee36e",
+      "hash": "93e70b986f61b0b0e116f9856ade5c8dae281d32825fdc7a037939fecf211cc5",
       "files": [
         "docs/perf/.gitkeep",
         "docs/perf/index.html",
         "docs/perf/perf-wiki.json",
         "iterations/000-bootstrap-frontier-agent-kit.md",
+        "iterations/001-planning-review-workflow.md",
         "research/frontier-agent-kit-sources.json",
         "research/frontier-package-surfaces.md",
         "research/repos/.gitkeep",
@@ -94,7 +95,7 @@
     },
     "package-shape": {
       "description": "Package metadata, lockfiles, and TypeScript configuration.",
-      "hash": "ceec24d8167f21acd0df3759afb4c840e827ee2546fc0c3847bdfb454ed68373",
+      "hash": "fa55d2eac0e75172e7863c71a1313b9fa10a39098619de92bf70545d22aa1c35",
       "files": [
         "package-lock.json",
         "package.json",

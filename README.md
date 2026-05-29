@@ -25,9 +25,12 @@ The root import is dependency-light and JSON-only:
 ```ts
 import {
   createFeatureRun,
+  planFeatureRun,
   recordFeatureStep,
   recordEvidence,
-  featureRunToJsonl
+  reviewFeatureRun,
+  featureRunToJsonl,
+  featureRunToMarkdownReport
 } from '@shapeshift-labs/frontier-agent-kit';
 ```
 
@@ -40,6 +43,36 @@ import { frontierPlaywrightEvidenceToEvents } from '@shapeshift-labs/frontier-ag
 import { domDevtoolsSnapshotToEvidence } from '@shapeshift-labs/frontier-agent-kit/dom';
 import { initFrontierAgentWorkspace } from '@shapeshift-labs/frontier-agent-kit/node';
 ```
+
+## Feature Workflow
+
+Agents should start with a plan, then produce a run, then produce a review:
+
+```ts
+import {
+  createFeatureRun,
+  finishFeatureRun,
+  planFeatureRun,
+  reviewFeatureRun,
+  featureRunToMarkdownReport
+} from '@shapeshift-labs/frontier-agent-kit';
+
+const plan = planFeatureRun(manifest);
+let run = createFeatureRun(manifest, { actor: { id: 'codex', kind: 'ai' } });
+
+// Record steps, evidence, checkpoints, and gates while doing the work.
+
+run = finishFeatureRun(run);
+const review = reviewFeatureRun(run);
+const markdown = featureRunToMarkdownReport(run);
+```
+
+Humans should read the manifest, the run report, and the review findings:
+
+- The manifest says what the feature intended to touch.
+- The plan says what evidence and gates should exist.
+- The run says what actually happened.
+- The review highlights missing gates, missing evidence, undeclared package usage, undeclared path writes, and failed/blocked steps.
 
 ## Feature Runs
 
@@ -97,7 +130,12 @@ frontier-agent-kit inspect --json
 frontier-agent-kit init
 frontier-agent-kit init-feature --id feature.checkout.submit --title "Submit checkout"
 frontier-agent-kit new-run features/feature.checkout.submit.json
+frontier-agent-kit plan features/feature.checkout.submit.json --json
+frontier-agent-kit validate-manifest features/feature.checkout.submit.json --json
 frontier-agent-kit summarize agent-runs/run-id.json --json
+frontier-agent-kit review agent-runs/run-id.json --markdown
+frontier-agent-kit report agent-runs/run-id.json --out agent-runs/run-id.md
+frontier-agent-kit export-jsonl agent-runs/run-id.json --out agent-runs/run-id.jsonl
 ```
 
 `init` creates:
@@ -150,6 +188,11 @@ Root:
 - `recordCheckpoint(run, checkpoint, now?)`
 - `recordGateResult(run, result)`
 - `finishFeatureRun(run, status?, now?)`
+- `planFeatureRun(manifest, now?)`
+- `reviewFeatureRun(run, now?)`
+- `featureRunReviewToMarkdown(review)`
+- `featureRunToMarkdownReport(run)`
+- `iterateFeatureRunJsonlRecords(run)`
 - `featureRunToJsonl(run)` / `featureRunFromJsonl(jsonl)`
 - `redactFeatureRun(run, policy?)`
 - `listFrontierPackageSurfaces()`
@@ -195,4 +238,3 @@ npm run docs:perf
 npm run docs:perf -- --check
 npm run pack:dry
 ```
-

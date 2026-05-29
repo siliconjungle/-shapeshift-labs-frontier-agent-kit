@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-29T03:16:29.880Z",
+  "generatedAt": "2026-05-29T03:26:27.516Z",
   "projectName": "@shapeshift-labs/frontier-agent-kit",
-  "noteCount": 2,
-  "benchmarkRowCount": 26,
-  "benchmarkFixtureCount": 26,
+  "noteCount": 3,
+  "benchmarkRowCount": 30,
+  "benchmarkFixtureCount": 30,
   "notes": [
     {
       "kind": "iteration",
@@ -41,6 +41,35 @@
       ]
     },
     {
+      "kind": "iteration",
+      "title": "Planning And Review Workflow",
+      "sourcePath": "iterations/001-planning-review-workflow.md",
+      "verdict": "accepted",
+      "tags": [
+        "iteration",
+        "workflow",
+        "review",
+        "planning",
+        "reporting",
+        "benchmark",
+        "package-boundary"
+      ],
+      "decision": "Added a coherent plan/run/review workflow over the lower-level feature-run ledger, plus CLI commands and benchmark coverage for reviewer-facing reports.",
+      "summary": "## Goal",
+      "artifacts": [
+        "benchmarks/agent-kit-benchmark.mjs",
+        "benchmarks/results/agent-kit-latest.json",
+        "benchmarks/results/package-boundary-gates-latest.json",
+        "benchmarks/results/startup-import-latest.json",
+        "src/index.ts",
+        "src/node.ts",
+        "src/types.ts",
+        "test/fuzz/agent-kit-fuzz.mjs",
+        "test/smoke.mjs",
+        "test/types.ts"
+      ]
+    },
+    {
       "kind": "research",
       "title": "Frontier Package Surface Review",
       "sourcePath": "research/frontier-package-surfaces.md",
@@ -67,7 +96,7 @@
     }
   ],
   "benchmarkMap": {
-    "rowCount": 26,
+    "rowCount": 30,
     "fixtures": [
       {
         "category": "agent-kit",
@@ -93,7 +122,40 @@
       },
       {
         "category": "agent-kit",
+        "fixture": "jsonl-record-iterator-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
         "fixture": "log-records-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "markdown-report-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "plan-feature-run-1000",
         "rows": 1,
         "sources": [
           "benchmarks/results/agent-kit-latest.json"
@@ -116,6 +178,17 @@
       {
         "category": "agent-kit",
         "fixture": "redact-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "review-run-1000-events",
         "rows": 1,
         "sources": [
           "benchmarks/results/agent-kit-latest.json"

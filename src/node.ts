@@ -3,9 +3,13 @@ import path from 'node:path';
 import {
   createFeatureRun,
   createStableId,
+  featureRunReviewToMarkdown,
   featureRunFromJsonl,
+  featureRunToMarkdownReport,
   featureRunToJsonl,
   finishFeatureRun,
+  planFeatureRun,
+  reviewFeatureRun,
   summarizeFeatureRun,
   validateFeatureManifest
 } from './index.js';
@@ -136,18 +140,18 @@ export function createFeatureRunFromManifestFile(filePath: string, options: { re
 export async function runCli(argv = process.argv.slice(2), cwd = process.cwd()): Promise<CliResult> {
   const args = parseArgs(argv);
   const command = args._[0] ?? 'help';
+  const root = String(args.cwd ?? cwd);
   if (command === 'inspect') {
-    const output = inspectFrontierAgentWorkspace(String(args.cwd ?? cwd)) as unknown as JsonObject;
+    const output = inspectFrontierAgentWorkspace(root) as unknown as JsonObject;
     print(output, Boolean(args.json));
     return { status: 0, output };
   }
   if (command === 'init') {
-    const output = initFrontierAgentWorkspace(String(args.cwd ?? cwd), { force: Boolean(args.force) }) as unknown as JsonObject;
+    const output = initFrontierAgentWorkspace(root, { force: Boolean(args.force) }) as unknown as JsonObject;
     print(output, Boolean(args.json));
     return { status: 0, output };
   }
   if (command === 'init-feature') {
-    const root = String(args.cwd ?? cwd);
     const id = String(args.id ?? 'feature.' + Date.now().toString(36));
     const title = String(args.title ?? id);
     const manifest = createFeatureEvidenceManifest(id, title);
@@ -161,20 +165,81 @@ export async function runCli(argv = process.argv.slice(2), cwd = process.cwd()):
   if (command === 'new-run') {
     const manifestPath = args._[1];
     if (!manifestPath) throw new Error('missing manifest path');
-    const run = createFeatureRunFromManifestFile(path.resolve(cwd, manifestPath));
-    const target = String(args.out ?? path.join(cwd, 'agent-runs', run.id + '.json'));
+    const run = createFeatureRunFromManifestFile(path.resolve(root, manifestPath));
+    const target = String(args.out ? path.resolve(root, String(args.out)) : path.join(root, 'agent-runs', run.id + '.json'));
     writeFeatureRunFile(target, run);
-    const output = { runId: run.id, path: path.relative(cwd, target) };
+    const output = { runId: run.id, path: path.relative(root, target) };
     print(output, Boolean(args.json));
     return { status: 0, output };
+  }
+  if (command === 'plan') {
+    const manifestPath = args._[1];
+    if (!manifestPath) throw new Error('missing manifest path');
+    const manifest = readFeatureManifestFile(path.resolve(root, manifestPath));
+    const output = planFeatureRun(manifest) as unknown as JsonObject;
+    print(output, Boolean(args.json));
+    return { status: 0, output };
+  }
+  if (command === 'validate-manifest') {
+    const manifestPath = args._[1];
+    if (!manifestPath) throw new Error('missing manifest path');
+    const manifest = JSON.parse(fs.readFileSync(path.resolve(root, manifestPath), 'utf8')) as FeatureManifest;
+    const validation = validateFeatureManifest(manifest);
+    const output = validation as unknown as JsonObject;
+    print(output, Boolean(args.json));
+    return { status: validation.ok ? 0 : 1, output };
   }
   if (command === 'summarize') {
     const runPath = args._[1];
     if (!runPath) throw new Error('missing run path');
-    const run = readFeatureRunFile(path.resolve(cwd, runPath));
+    const run = readFeatureRunFile(path.resolve(root, runPath));
     const output = summarizeFeatureRun(run) as unknown as JsonObject;
     print(output, Boolean(args.json));
     return { status: 0, output };
+  }
+  if (command === 'review') {
+    const runPath = args._[1];
+    if (!runPath) throw new Error('missing run path');
+    const run = readFeatureRunFile(path.resolve(root, runPath));
+    const review = reviewFeatureRun(run);
+    if (args.markdown) {
+      console.log(featureRunReviewToMarkdown(review));
+    } else {
+      print(review, Boolean(args.json));
+    }
+    return { status: review.ready ? 0 : 1, output: review as unknown as JsonObject };
+  }
+  if (command === 'report') {
+    const runPath = args._[1];
+    if (!runPath) throw new Error('missing run path');
+    const run = readFeatureRunFile(path.resolve(root, runPath));
+    const markdown = featureRunToMarkdownReport(run);
+    if (args.out) {
+      const target = path.resolve(root, String(args.out));
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, markdown);
+      const output = { path: path.relative(root, target) };
+      print(output, Boolean(args.json));
+      return { status: 0, output };
+    }
+    console.log(markdown);
+    return { status: 0 };
+  }
+  if (command === 'export-jsonl') {
+    const runPath = args._[1];
+    if (!runPath) throw new Error('missing run path');
+    const run = readFeatureRunFile(path.resolve(root, runPath));
+    const jsonl = featureRunToJsonl(run);
+    if (args.out) {
+      const target = path.resolve(root, String(args.out));
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, jsonl);
+      const output = { path: path.relative(root, target) };
+      print(output, Boolean(args.json));
+      return { status: 0, output };
+    }
+    process.stdout.write(jsonl);
+    return { status: 0 };
   }
   printHelp();
   return { status: command === 'help' || command === '--help' || command === '-h' ? 0 : 1 };
@@ -204,7 +269,7 @@ function parseArgs(argv: readonly string[]): Record<string, unknown> & { _: stri
       continue;
     }
     const key = toCamel(arg.slice(2));
-    if (key === 'json' || key === 'force') out[key] = true;
+    if (key === 'json' || key === 'force' || key === 'markdown') out[key] = true;
     else out[key] = argv[++i];
   }
   return out;
@@ -228,7 +293,11 @@ function printHelp(): void {
   frontier-agent-kit init [--force] [--json]
   frontier-agent-kit init-feature --id <id> --title <title>
   frontier-agent-kit new-run <features/feature.json> [--out agent-runs/run.json]
+  frontier-agent-kit plan <features/feature.json> [--json]
+  frontier-agent-kit validate-manifest <features/feature.json> [--json]
   frontier-agent-kit summarize <agent-runs/run.json> [--json]
+  frontier-agent-kit review <agent-runs/run.json> [--json|--markdown]
+  frontier-agent-kit report <agent-runs/run.json> [--out report.md]
+  frontier-agent-kit export-jsonl <agent-runs/run.json> [--out run.jsonl]
 `);
 }
-
