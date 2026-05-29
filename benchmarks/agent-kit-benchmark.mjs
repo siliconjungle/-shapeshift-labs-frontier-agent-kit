@@ -3,10 +3,15 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import {
   createFeatureRun,
+  createFeatureRunProof,
+  evaluateFeatureRunAcceptance,
   featureRunToJsonl,
+  featureRunProofToMarkdown,
   featureRunToMarkdownReport,
+  indexFeatureRun,
   iterateFeatureRunJsonlRecords,
   planFeatureRun,
+  recordCheckpoint,
   recordEvidence,
   recordFeatureStep,
   redactFeatureRun,
@@ -46,6 +51,21 @@ const rows = [
   bench('review-run-1000-events', rounds, () => {
     const run = createFixtureRun(5, 1000);
     reviewFeatureRun(run);
+  }),
+  bench('index-run-1000-events', rounds, () => {
+    const run = createFixtureRun(8, 1000);
+    const index = indexFeatureRun(run);
+    if (Object.keys(index.evidenceByKind).length === 0) throw new Error('bad index');
+  }),
+  bench('evaluate-acceptance-1000-events', rounds, () => {
+    const run = createAcceptanceFixtureRun(9, 1000);
+    const results = evaluateFeatureRunAcceptance(run);
+    if (results[0]?.status !== 'passed') throw new Error('bad acceptance');
+  }),
+  bench('proof-markdown-1000-events', rounds, () => {
+    const run = createAcceptanceFixtureRun(10, 1000);
+    const markdown = featureRunProofToMarkdown(createFeatureRunProof(run));
+    if (!markdown.includes('Frontier Feature Proof')) throw new Error('bad proof');
   }),
   bench('markdown-report-1000-events', rounds, () => {
     const run = createFixtureRun(6, 1000);
@@ -95,6 +115,29 @@ function createFixtureRun(id, eventCount) {
       data: { value: i, token: 'secret-' + i }
     }, i);
   }
+  return run;
+}
+
+function createAcceptanceFixtureRun(id, eventCount) {
+  let run = createFeatureRun({
+    id: 'feature.bench.acceptance.' + id,
+    title: 'Benchmark acceptance feature ' + id,
+    packages: [{ name: '@shapeshift-labs/frontier' }],
+    acceptance: [
+      { id: 'status-ready', source: 'state', query: '/state/status', expected: 'ready', required: true }
+    ],
+    gates: [{ id: 'unit', command: 'npm test', required: true, category: 'test' }]
+  }, { runId: 'bench-acceptance-run-' + id, now: () => 1 });
+  for (let i = 0; i < eventCount; i++) {
+    run = recordEvidence(run, {
+      kind: 'bench.event',
+      data: { value: i, token: 'secret-' + i }
+    }, i);
+  }
+  run = recordCheckpoint(run, {
+    label: 'ready',
+    data: { state: { status: 'ready' } }
+  }, eventCount + 1);
   return run;
 }
 

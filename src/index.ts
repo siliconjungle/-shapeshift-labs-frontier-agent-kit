@@ -7,15 +7,19 @@ import {
 import type {
   EvidenceEvent,
   EvidenceEventInput,
+  FeatureAcceptanceCriterion,
   FeatureCheckpoint,
   FeatureGate,
   FeatureManifest,
   FeaturePackageRef,
   FeatureRun,
+  FeatureRunAcceptanceResult,
   FeatureRunContext,
+  FeatureRunIndex,
   FeatureRunJsonlRecord,
   FeatureRunPlan,
   FeatureRunPlanStep,
+  FeatureRunProof,
   FeatureRunReview,
   FeatureRunReviewFinding,
   FeatureRunStatus,
@@ -207,6 +211,11 @@ export function assessFeatureRun(run: FeatureRun): FeatureRunStatus {
   if (run.steps.some((step) => step.status === 'blocked')) return 'blocked';
   if (run.steps.some((step) => step.status === 'failed')) return 'failed';
   if (run.evidence.some((event) => event.severity === 'fatal' || event.severity === 'error')) return 'needs-review';
+  const acceptance = evaluateFeatureRunAcceptance(run);
+  if (acceptance.some((result) => result.required && result.status === 'failed')) return 'failed';
+  if (acceptance.some((result) => result.required && (result.status === 'missing' || result.status === 'unknown'))) {
+    return 'needs-review';
+  }
   const requiredGates = (run.manifest.gates ?? []).filter((gate) => gate.required !== false);
   if (requiredGates.length > 0) {
     const passedRequired = new Set(run.gates.filter((gate) => gate.required && gate.status === 'passed').map((gate) => gate.id));
@@ -298,28 +307,167 @@ export function planFeatureRun(manifest: FeatureManifest, now: number = Date.now
   };
 }
 
+export function indexFeatureRun(run: FeatureRun): FeatureRunIndex {
+  const evidenceById: Record<string, EvidenceEvent> = {};
+  const evidenceByKind: Record<string, string[]> = {};
+  const evidenceBySource: Record<string, string[]> = {};
+  const evidenceByPackage: Record<string, string[]> = {};
+  const evidenceByStep: Record<string, string[]> = {};
+  const gatesById: Record<string, GateResult> = {};
+  const stepsById: Record<string, FeatureStep> = {};
+  const declaredPackages = new Set<string>();
+  const observedPackages = new Set<string>();
+  const declaredPaths = new Set<string>();
+  const touchedPaths = new Set<string>();
+
+  for (const pkg of run.manifest.packages ?? []) declaredPackages.add(normalizePackageRef(pkg).name);
+  for (const state of run.manifest.state ?? []) declaredPaths.add(pathToString(state.path));
+  for (const query of run.manifest.queries ?? []) if (query.selector) declaredPaths.add(pathToString(query.selector));
+  for (const action of run.manifest.actions ?? []) {
+    for (const read of action.reads ?? []) declaredPaths.add(pathToString(read));
+    for (const write of action.writes ?? []) declaredPaths.add(pathToString(write));
+  }
+
+  for (const step of run.steps) {
+    stepsById[step.id] = step;
+    for (const pkg of step.packages) observedPackages.add(normalizePackageRef(pkg).name);
+    for (const path of step.reads) touchedPaths.add(path);
+    for (const path of step.writes) touchedPaths.add(path);
+  }
+  for (const event of run.evidence) {
+    evidenceById[event.id] = event;
+    pushIndexed(evidenceByKind, event.kind, event.id);
+    if (event.source) pushIndexed(evidenceBySource, event.source, event.id);
+    if (event.package) {
+      const pkg = normalizeFrontierPackageName(event.package);
+      observedPackages.add(pkg);
+      pushIndexed(evidenceByPackage, pkg, event.id);
+    }
+    if (event.stepId) pushIndexed(evidenceByStep, event.stepId, event.id);
+  }
+  for (const gate of run.gates) gatesById[gate.id] = gate;
+
+  const latestCheckpoint = run.checkpoints.reduce<FeatureCheckpoint | undefined>((latest, checkpoint) => {
+    if (!latest || checkpoint.time >= latest.time) return checkpoint;
+    return latest;
+  }, undefined);
+  const packages = new Set([...declaredPackages, ...observedPackages]);
+  const base: FeatureRunIndex = {
+    evidenceById,
+    evidenceByKind,
+    evidenceBySource,
+    evidenceByPackage,
+    evidenceByStep,
+    gatesById,
+    stepsById,
+    declaredPackages: [...declaredPackages].sort(),
+    observedPackages: [...observedPackages].sort(),
+    packages: [...packages].sort(),
+    declaredPaths: [...declaredPaths].sort(),
+    touchedPaths: [...touchedPaths].sort()
+  };
+  return latestCheckpoint ? { ...base, latestCheckpoint } : base;
+}
+
+export function evaluateFeatureRunAcceptance(run: FeatureRun): readonly FeatureRunAcceptanceResult[] {
+  const index = indexFeatureRun(run);
+  return (run.manifest.acceptance ?? []).map((criterion) => evaluateAcceptanceCriterion(run, index, criterion));
+}
+
+export function createFeatureRunProof(run: FeatureRun, now: number = Date.now()): FeatureRunProof {
+  const index = indexFeatureRun(run);
+  const review = reviewFeatureRun(run, now);
+  const checkpointSummary = {
+    count: run.checkpoints.length,
+    ...(index.latestCheckpoint ? {
+      latestId: index.latestCheckpoint.id,
+      latestLabel: index.latestCheckpoint.label,
+      latestTime: index.latestCheckpoint.time
+    } : {})
+  };
+  return {
+    kind: 'frontier.agent.feature-proof',
+    version: 1,
+    runId: run.id,
+    featureId: run.manifest.id,
+    generatedAt: now,
+    status: run.status,
+    ready: review.ready,
+    summary: review.summary,
+    acceptance: review.acceptance,
+    gates: [...run.gates],
+    evidence: {
+      count: run.evidence.length,
+      kinds: Object.keys(index.evidenceByKind).sort(),
+      sources: Object.keys(index.evidenceBySource).sort(),
+      packages: Object.keys(index.evidenceByPackage).sort()
+    },
+    checkpoints: checkpointSummary,
+    findings: review.findings,
+    nextActions: review.nextActions
+  };
+}
+
+export function featureRunProofToMarkdown(proof: FeatureRunProof): string {
+  const lines = [
+    '# Frontier Feature Proof',
+    '',
+    '- Run: `' + proof.runId + '`',
+    '- Feature: `' + proof.featureId + '`',
+    '- Status: `' + proof.status + '`',
+    '- Ready: `' + String(proof.ready) + '`',
+    '- Evidence: `' + proof.evidence.count + '`',
+    '- Checkpoints: `' + proof.checkpoints.count + '`',
+    '- Gates: `' + proof.gates.length + '`',
+    ''
+  ];
+  if (proof.acceptance.length > 0) {
+    lines.push('## Acceptance', '');
+    for (const result of proof.acceptance) {
+      lines.push('- `' + result.status + '` `' + result.id + '` ' + result.message);
+    }
+  } else {
+    lines.push('## Acceptance', '', 'No acceptance criteria declared.');
+  }
+  lines.push('', '## Evidence Kinds', '');
+  if (proof.evidence.kinds.length > 0) {
+    for (const kind of proof.evidence.kinds) lines.push('- `' + kind + '`');
+  } else {
+    lines.push('No evidence recorded.');
+  }
+  lines.push('', '## Gates', '');
+  if (proof.gates.length > 0) {
+    for (const gate of proof.gates) lines.push('- `' + gate.status + '` `' + gate.id + '` `' + gate.command + '`');
+  } else {
+    lines.push('No gates recorded.');
+  }
+  if (proof.findings.length > 0) {
+    lines.push('', '## Findings', '');
+    for (const item of proof.findings) lines.push('- `' + item.severity + '` `' + item.kind + '` ' + item.message);
+  }
+  if (proof.nextActions.length > 0) {
+    lines.push('', '## Next Actions', '');
+    for (const action of proof.nextActions) lines.push('- ' + action);
+  }
+  return lines.join('\n') + '\n';
+}
+
 export function reviewFeatureRun(run: FeatureRun, now: number = Date.now()): FeatureRunReview {
   const findings: FeatureRunReviewFinding[] = [];
+  const index = indexFeatureRun(run);
+  const acceptance = (run.manifest.acceptance ?? []).map((criterion) => evaluateAcceptanceCriterion(run, index, criterion));
   const validation = validateFeatureManifest(run.manifest);
   for (const error of validation.errors) findings.push(finding('manifest', 'error', error));
   for (const warning of validation.warnings) findings.push(finding('manifest', 'warning', warning));
 
-  const declaredPackages = new Set((run.manifest.packages ?? []).map((pkg) => normalizePackageRef(pkg).name));
-  const observedPackages = new Set<string>();
-  for (const step of run.steps) for (const pkg of step.packages) observedPackages.add(normalizePackageRef(pkg).name);
-  for (const event of run.evidence) if (event.package) observedPackages.add(normalizeFrontierPackageName(event.package));
-  for (const pkg of observedPackages) {
+  const declaredPackages = new Set(index.declaredPackages);
+  for (const pkg of index.observedPackages) {
     if (declaredPackages.size > 0 && !declaredPackages.has(pkg)) {
       findings.push(finding('package', 'warning', 'Observed undeclared package ' + pkg, { package: pkg }));
     }
   }
 
-  const declaredPaths = new Set<string>();
-  for (const state of run.manifest.state ?? []) declaredPaths.add(pathToString(state.path));
-  for (const action of run.manifest.actions ?? []) {
-    for (const read of action.reads ?? []) declaredPaths.add(pathToString(read));
-    for (const write of action.writes ?? []) declaredPaths.add(pathToString(write));
-  }
+  const declaredPaths = new Set(index.declaredPaths);
   for (const step of run.steps) {
     for (const write of step.writes) {
       if (declaredPaths.size > 0 && !pathMatchesDeclared(write, declaredPaths)) {
@@ -331,21 +479,25 @@ export function reviewFeatureRun(run: FeatureRun, now: number = Date.now()): Fea
     if (step.status === 'running') findings.push(finding('status', 'warning', 'Step is still running: ' + step.title, { stepId: step.id }));
   }
 
-  const evidenceKinds = new Set(run.evidence.map((event) => event.kind));
   for (const kind of requiredEvidenceKindsForManifest(run.manifest)) {
-    if (!evidenceKinds.has(kind)) findings.push(finding('evidence', 'warning', 'Missing expected evidence kind ' + kind));
+    if (!index.evidenceByKind[kind]) findings.push(finding('evidence', 'warning', 'Missing expected evidence kind ' + kind));
   }
-  for (const criterion of run.manifest.acceptance ?? []) {
-    if (criterion.required === false) continue;
-    if (!run.evidence.some((event) => event.source === criterion.source || event.kind.includes(criterion.source))) {
-      findings.push(finding('evidence', 'warning', 'No evidence found for acceptance criterion ' + criterion.id));
+
+  for (const result of acceptance) {
+    if (!result.required && result.status !== 'failed') continue;
+    if (result.status === 'passed') continue;
+    const severity = result.required ? 'error' : 'warning';
+    findings.push(finding('acceptance', severity, 'Acceptance criterion ' + result.id + ' is ' + result.status + ': ' + result.message, {
+      ...(result.gateId ? { gateId: result.gateId } : {})
+    }));
+    if (result.status === 'missing') {
+      findings.push(finding('evidence', severity, 'No evidence found for acceptance criterion ' + result.id));
     }
   }
 
-  const gateResults = new Map(run.gates.map((gate) => [gate.id, gate]));
   for (const gate of run.manifest.gates ?? []) {
     if (gate.required === false) continue;
-    const result = gateResults.get(gate.id);
+    const result = index.gatesById[gate.id];
     if (!result) {
       findings.push(finding('gate', 'error', 'Missing required gate result ' + gate.id, { gateId: gate.id }));
     } else if (result.status !== 'passed') {
@@ -370,6 +522,7 @@ export function reviewFeatureRun(run: FeatureRun, now: number = Date.now()): Fea
     ready,
     generatedAt: now,
     summary,
+    acceptance,
     findings,
     nextActions: nextActionsForFindings(findings, run)
   };
@@ -394,6 +547,12 @@ export function featureRunReviewToMarkdown(review: FeatureRunReview): string {
     lines.push('## Findings', '');
     for (const item of review.findings) {
       lines.push('- `' + item.severity + '` `' + item.kind + '` ' + item.message);
+    }
+  }
+  if (review.acceptance.length > 0) {
+    lines.push('', '## Acceptance', '');
+    for (const result of review.acceptance) {
+      lines.push('- `' + result.status + '` `' + result.id + '` ' + result.message);
     }
   }
   if (review.nextActions.length > 0) {
@@ -541,6 +700,340 @@ export function createStableId(prefix: string, ...parts: readonly unknown[]): st
   return prefix + '-' + (hash >>> 0).toString(36);
 }
 
+function evaluateAcceptanceCriterion(
+  run: FeatureRun,
+  index: FeatureRunIndex,
+  criterion: FeatureAcceptanceCriterion
+): FeatureRunAcceptanceResult {
+  if (criterion.source === 'state') return evaluateStateAcceptance(index, criterion);
+  if (criterion.source === 'test') return evaluateGateAcceptance(run, index, criterion);
+  if (criterion.source === 'custom') {
+    const custom = evaluateCustomAcceptance(run, index, criterion);
+    if (custom) return custom;
+  }
+  return evaluateEvidenceAcceptance(run, index, criterion);
+}
+
+function evaluateStateAcceptance(
+  index: FeatureRunIndex,
+  criterion: FeatureAcceptanceCriterion
+): FeatureRunAcceptanceResult {
+  if (!index.latestCheckpoint || index.latestCheckpoint.data === undefined) {
+    return acceptanceResult(criterion, 'missing', 'No checkpoint data is available for state acceptance.');
+  }
+  const observed = criterion.query ? readJsonPath(index.latestCheckpoint.data, criterion.query) : index.latestCheckpoint.data;
+  const match = matchAcceptanceValue(observed, criterion);
+  return acceptanceResult(criterion, match.status, match.message, {
+    ...(observed !== undefined ? { observed } : {}),
+    checkpointId: index.latestCheckpoint.id
+  });
+}
+
+function evaluateGateAcceptance(
+  run: FeatureRun,
+  index: FeatureRunIndex,
+  criterion: FeatureAcceptanceCriterion
+): FeatureRunAcceptanceResult {
+  const gateId = acceptanceGateId(criterion);
+  if (gateId) return acceptanceForGateStatus(index, criterion, gateId);
+
+  const declaredTestGates = (run.manifest.gates ?? []).filter((gate) => gate.category === 'test' || /test/i.test(gate.id));
+  const results: GateResult[] = [];
+  for (const gate of declaredTestGates) {
+    const result = index.gatesById[gate.id];
+    if (result) results.push(result);
+  }
+  if (results.some((gate) => gate.status === 'passed')) {
+    const gate = results.find((item) => item.status === 'passed') as GateResult;
+    return acceptanceResult(criterion, 'passed', 'Test gate passed: ' + gate.id, {
+      observed: gate.status,
+      gateId: gate.id
+    });
+  }
+  const failed = results.find((gate) => gate.status === 'failed' || gate.status === 'missing' || gate.status === 'skipped');
+  if (failed) {
+    return acceptanceResult(criterion, 'failed', 'Test gate did not pass: ' + failed.id + ' is ' + failed.status, {
+      observed: failed.status,
+      gateId: failed.id
+    });
+  }
+  if (declaredTestGates.length > 0) {
+    return acceptanceResult(criterion, 'missing', 'No recorded result for declared test gates.');
+  }
+  return evaluateEvidenceAcceptance(run, index, criterion);
+}
+
+function acceptanceForGateStatus(
+  index: FeatureRunIndex,
+  criterion: FeatureAcceptanceCriterion,
+  gateId: string
+): FeatureRunAcceptanceResult {
+  const gate = index.gatesById[gateId];
+  if (!gate) return acceptanceResult(criterion, 'missing', 'No recorded gate result for ' + gateId + '.', { gateId });
+  if (gate.status === 'passed') {
+    return acceptanceResult(criterion, 'passed', 'Gate passed: ' + gateId, { observed: gate.status, gateId });
+  }
+  return acceptanceResult(criterion, 'failed', 'Gate did not pass: ' + gateId + ' is ' + gate.status, {
+    observed: gate.status,
+    gateId
+  });
+}
+
+function evaluateCustomAcceptance(
+  run: FeatureRun,
+  index: FeatureRunIndex,
+  criterion: FeatureAcceptanceCriterion
+): FeatureRunAcceptanceResult | undefined {
+  const matcher = criterion.matcher?.trim();
+  if (matcher === 'run.evidence.length > 0') {
+    const status = run.evidence.length > 0 ? 'passed' : 'missing';
+    return acceptanceResult(criterion, status, status === 'passed' ? 'Run has recorded evidence.' : 'Run has no recorded evidence.', {
+      observed: run.evidence.length
+    });
+  }
+  if (matcher === 'run.steps.length > 0') {
+    const status = run.steps.length > 0 ? 'passed' : 'missing';
+    return acceptanceResult(criterion, status, status === 'passed' ? 'Run has recorded steps.' : 'Run has no recorded steps.', {
+      observed: run.steps.length
+    });
+  }
+  if (matcher === 'run.checkpoints.length > 0') {
+    const status = run.checkpoints.length > 0 ? 'passed' : 'missing';
+    return acceptanceResult(criterion, status, status === 'passed' ? 'Run has recorded checkpoints.' : 'Run has no recorded checkpoints.', {
+      observed: run.checkpoints.length
+    });
+  }
+  if (matcher?.startsWith('gate:')) return acceptanceForGateStatus(index, criterion, matcher.slice('gate:'.length).trim());
+  return undefined;
+}
+
+function evaluateEvidenceAcceptance(
+  run: FeatureRun,
+  index: FeatureRunIndex,
+  criterion: FeatureAcceptanceCriterion
+): FeatureRunAcceptanceResult {
+  const matcher = criterion.matcher?.trim();
+  if (matcher?.startsWith('evidence-kind:')) {
+    const kind = matcher.slice('evidence-kind:'.length).trim();
+    const ids = index.evidenceByKind[kind] ?? [];
+    if (ids.length > 0) {
+      return acceptanceResult(criterion, 'passed', 'Found evidence kind ' + kind + '.', { evidenceIds: ids });
+    }
+    return acceptanceResult(criterion, 'missing', 'Missing evidence kind ' + kind + '.');
+  }
+
+  const ids = relatedEvidenceIds(run, index, criterion);
+  if (ids.length === 0) return acceptanceResult(criterion, 'missing', 'No related evidence was recorded.');
+  if (!criterion.query && criterion.expected === undefined && !isValueMatcher(matcher)) {
+    return acceptanceResult(criterion, 'passed', 'Related evidence was recorded.', { evidenceIds: ids });
+  }
+
+  let firstObserved: JsonValue | undefined;
+  let sawValue = false;
+  for (const id of ids) {
+    const event = index.evidenceById[id];
+    if (!event || event.data === undefined) continue;
+    const observed = criterion.query ? readJsonPath(event.data, criterion.query) : event.data;
+    if (observed === undefined) continue;
+    if (!sawValue) firstObserved = observed;
+    sawValue = true;
+    const match = matchAcceptanceValue(observed, criterion);
+    if (match.status === 'passed') {
+      return acceptanceResult(criterion, 'passed', match.message, {
+        observed,
+        evidenceIds: ids
+      });
+    }
+  }
+  if (!sawValue) {
+    return acceptanceResult(criterion, 'missing', 'Related evidence exists but does not contain the requested value.', {
+      evidenceIds: ids
+    });
+  }
+  const match = matchAcceptanceValue(firstObserved, criterion);
+  return acceptanceResult(criterion, match.status, match.message, {
+    ...(firstObserved !== undefined ? { observed: firstObserved } : {}),
+    evidenceIds: ids
+  });
+}
+
+function relatedEvidenceIds(
+  run: FeatureRun,
+  index: FeatureRunIndex,
+  criterion: FeatureAcceptanceCriterion
+): readonly string[] {
+  const ids = new Set<string>();
+  const source = criterion.source;
+  for (const id of index.evidenceBySource[source] ?? []) ids.add(id);
+  for (const [kind, kindIds] of Object.entries(index.evidenceByKind)) {
+    if (kind.includes(source)) for (const id of kindIds) ids.add(id);
+  }
+  if (criterion.query && typeof criterion.query === 'string' && !criterion.query.startsWith('/')) {
+    for (const id of index.evidenceByKind[criterion.query] ?? []) ids.add(id);
+    for (const id of index.evidenceBySource[criterion.query] ?? []) ids.add(id);
+  }
+  if (source === 'benchmark') {
+    for (const [kind, kindIds] of Object.entries(index.evidenceByKind)) {
+      if (/bench|perf/i.test(kind)) for (const id of kindIds) ids.add(id);
+    }
+  }
+  if (source === 'query') {
+    for (const [kind, kindIds] of Object.entries(index.evidenceByKind)) {
+      if (/query|selector|cache/i.test(kind)) for (const id of kindIds) ids.add(id);
+    }
+  }
+  if (source === 'custom' && run.evidence.length > 0) {
+    for (const event of run.evidence) ids.add(event.id);
+  }
+  return [...ids];
+}
+
+interface AcceptanceValueMatch {
+  readonly status: FeatureRunAcceptanceResult['status'];
+  readonly message: string;
+}
+
+function matchAcceptanceValue(observed: JsonValue | undefined, criterion: FeatureAcceptanceCriterion): AcceptanceValueMatch {
+  const matcher = criterion.matcher?.trim();
+  if (matcher === 'missing') {
+    return observed === undefined
+      ? { status: 'passed', message: 'Value is missing as expected.' }
+      : { status: 'failed', message: 'Value exists but was expected to be missing.' };
+  }
+  if (observed === undefined) return { status: 'missing', message: 'Expected value was not observed.' };
+  if (matcher === 'exists' || (!matcher && criterion.expected === undefined)) {
+    return { status: 'passed', message: 'Value exists.' };
+  }
+  if (matcher === 'truthy') {
+    return Boolean(observed)
+      ? { status: 'passed', message: 'Value is truthy.' }
+      : { status: 'failed', message: 'Value is not truthy.' };
+  }
+  if (matcher === 'falsy') {
+    return !observed
+      ? { status: 'passed', message: 'Value is falsy.' }
+      : { status: 'failed', message: 'Value is not falsy.' };
+  }
+  if (matcher === 'not-equals') {
+    if (criterion.expected === undefined) return { status: 'unknown', message: 'not-equals matcher requires expected.' };
+    return jsonEqual(observed, criterion.expected)
+      ? { status: 'failed', message: 'Observed value equals the disallowed expected value.' }
+      : { status: 'passed', message: 'Observed value differs from expected.' };
+  }
+  if (matcher === 'includes' || matcher?.startsWith('includes:')) {
+    const expected = matcher.startsWith('includes:')
+      ? parseMatcherValue(matcher.slice('includes:'.length))
+      : criterion.expected;
+    if (expected === undefined) return { status: 'unknown', message: 'includes matcher requires expected.' };
+    return jsonIncludes(observed, expected)
+      ? { status: 'passed', message: 'Observed value includes expected.' }
+      : { status: 'failed', message: 'Observed value does not include expected.' };
+  }
+  if (matcher && matcher !== 'equals') return { status: 'unknown', message: 'Unsupported matcher: ' + matcher };
+  if (criterion.expected === undefined) return { status: 'unknown', message: 'No expected value or matcher was provided.' };
+  return jsonEqual(observed, criterion.expected)
+    ? { status: 'passed', message: 'Observed value equals expected.' }
+    : { status: 'failed', message: 'Observed value does not equal expected.' };
+}
+
+function isValueMatcher(matcher: string | undefined): boolean {
+  return Boolean(matcher && (
+    matcher === 'exists' ||
+    matcher === 'missing' ||
+    matcher === 'equals' ||
+    matcher === 'not-equals' ||
+    matcher === 'truthy' ||
+    matcher === 'falsy' ||
+    matcher === 'includes' ||
+    matcher.startsWith('includes:')
+  ));
+}
+
+function acceptanceGateId(criterion: FeatureAcceptanceCriterion): string | undefined {
+  if (criterion.matcher?.startsWith('gate:')) return criterion.matcher.slice('gate:'.length).trim();
+  if (typeof criterion.query === 'string' && criterion.query && !criterion.query.startsWith('/')) return criterion.query;
+  return undefined;
+}
+
+function acceptanceResult(
+  criterion: FeatureAcceptanceCriterion,
+  status: FeatureRunAcceptanceResult['status'],
+  message: string,
+  extra: Omit<FeatureRunAcceptanceResult, 'id' | 'source' | 'required' | 'status' | 'message'> = {}
+): FeatureRunAcceptanceResult {
+  return {
+    id: criterion.id,
+    source: criterion.source,
+    required: criterion.required !== false,
+    status,
+    message,
+    ...(criterion.expected !== undefined ? { expected: criterion.expected } : {}),
+    ...extra
+  };
+}
+
+function pushIndexed(map: Record<string, string[]>, key: string, value: string): void {
+  (map[key] ??= []).push(value);
+}
+
+function readJsonPath(value: JsonValue, path: FrontierAgentPath): JsonValue | undefined {
+  let current: JsonValue | undefined = value;
+  for (const segment of pathSegments(path)) {
+    if (current === undefined || current === null || typeof current !== 'object') return undefined;
+    if (Array.isArray(current)) {
+      const index = Number(segment);
+      if (!Number.isInteger(index) || index < 0 || index >= current.length) return undefined;
+      current = current[index];
+    } else {
+      current = current[segment];
+    }
+  }
+  return current;
+}
+
+function pathSegments(path: FrontierAgentPath): readonly string[] {
+  if (typeof path !== 'string') return path.map(String);
+  if (path === '' || path === '/') return [];
+  if (path.startsWith('/')) {
+    return path.split('/').slice(1).map((part) => part.replace(/~1/g, '/').replace(/~0/g, '~'));
+  }
+  return path.includes('.') ? path.split('.').filter(Boolean) : [path];
+}
+
+function parseMatcherValue(input: string): JsonValue {
+  try {
+    return JSON.parse(input) as JsonValue;
+  } catch {
+    return input;
+  }
+}
+
+function jsonIncludes(value: JsonValue, expected: JsonValue): boolean {
+  if (typeof value === 'string') return value.includes(String(expected));
+  if (Array.isArray(value)) return value.some((item) => jsonEqual(item, expected));
+  if (value && typeof value === 'object' && typeof expected === 'string') return Object.prototype.hasOwnProperty.call(value, expected);
+  return false;
+}
+
+function jsonEqual(left: JsonValue, right: JsonValue): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((item, index) => jsonEqual(item, right[index] as JsonValue));
+  }
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  if (leftKeys.length !== rightKeys.length) return false;
+  for (let index = 0; index < leftKeys.length; index++) {
+    const leftKey = leftKeys[index];
+    const rightKey = rightKeys[index];
+    if (leftKey === undefined || rightKey === undefined || leftKey !== rightKey) return false;
+    if (!jsonEqual(left[leftKey] as JsonValue, right[rightKey] as JsonValue)) return false;
+  }
+  return true;
+}
+
 function normalizeFeatureManifest(manifest: FeatureManifest): FeatureManifest {
   return {
     ...manifest,
@@ -590,6 +1083,7 @@ function nextActionsForFindings(findings: readonly FeatureRunReviewFinding[], ru
   for (const item of findings) {
     if (item.kind === 'gate') actions.add('Run or fix required gates, then record updated gate results.');
     if (item.kind === 'evidence') actions.add('Capture the missing evidence and attach it to the run.');
+    if (item.kind === 'acceptance') actions.add('Record evidence or state checkpoints that satisfy required acceptance criteria.');
     if (item.kind === 'path') actions.add('Update the feature manifest or constrain writes to declared paths.');
     if (item.kind === 'package') actions.add('Declare observed packages in the feature manifest or remove unintended integration work.');
     if (item.kind === 'status') actions.add('Finish or repair incomplete/failed steps before handoff.');

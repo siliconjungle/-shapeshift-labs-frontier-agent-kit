@@ -6,15 +6,20 @@ import test from 'node:test';
 import {
   assessFeatureRun,
   createFeatureRun,
+  createFeatureRunProof,
+  evaluateFeatureRunAcceptance,
   featureRunFromJsonl,
+  featureRunProofToMarkdown,
   featureRunReviewToMarkdown,
   featureRunToJsonl,
   featureRunToMarkdownReport,
   finishFeatureRun,
   iterateFeatureRunJsonlRecords,
+  indexFeatureRun,
   planFeatureRun,
   listFrontierPackageSurfaces,
   queryFeatureEvidence,
+  recordCheckpoint,
   recordEvidence,
   recordFeatureStep,
   recordGateResult,
@@ -118,9 +123,19 @@ test('records a feature run across Frontier evidence surfaces', () => {
 
   const review = reviewFeatureRun(run, 3000);
   assert.equal(review.ready, true);
+  assert.equal(review.acceptance[0].status, 'passed');
   assert.equal(review.findings.filter((finding) => finding.severity === 'error').length, 0);
   assert.match(featureRunReviewToMarkdown(review), /Feature Run Review/);
   assert.match(featureRunToMarkdownReport(run), /Frontier Feature Run/);
+  const acceptance = evaluateFeatureRunAcceptance(run);
+  assert.equal(acceptance[0].status, 'passed');
+  const index = indexFeatureRun(run);
+  assert.ok(index.evidenceByKind['frontier.patch.summary'].length > 0);
+  assert.equal(index.gatesById.unit.status, 'passed');
+  const proof = createFeatureRunProof(run, 4000);
+  assert.equal(proof.ready, true);
+  assert.equal(proof.acceptance[0].status, 'passed');
+  assert.match(featureRunProofToMarkdown(proof), /Frontier Feature Proof/);
 
   const jsonlRecords = [...iterateFeatureRunJsonlRecords(run)];
   assert.equal(jsonlRecords.length, 1 + run.steps.length + run.evidence.length + run.checkpoints.length + run.gates.length);
@@ -139,6 +154,36 @@ test('records a feature run across Frontier evidence surfaces', () => {
 
   const logRecords = featureRunToLogRecords(run);
   assert.ok(logRecords.some((record) => record.name === 'frontier.agent.run.summary'));
+});
+
+test('evaluates state acceptance from checkpoints', () => {
+  const manifest = {
+    id: 'feature.acceptance.state',
+    title: 'State acceptance',
+    state: [{ id: 'checkout-status', path: ['checkout', 'status'] }],
+    acceptance: [
+      { id: 'status-paid', source: 'state', query: '/checkout/status', expected: 'paid', required: true }
+    ]
+  };
+  let run = createFeatureRun(manifest, { runId: 'acceptance-pass', now: () => 1 });
+  run = recordCheckpoint(run, {
+    label: 'after checkout',
+    data: { checkout: { status: 'paid' } }
+  }, 2);
+  run = finishFeatureRun(run, undefined, 3);
+  assert.equal(assessFeatureRun(run), 'passed');
+  assert.equal(evaluateFeatureRunAcceptance(run)[0].status, 'passed');
+
+  let failed = createFeatureRun(manifest, { runId: 'acceptance-fail', now: () => 1 });
+  failed = recordCheckpoint(failed, {
+    label: 'after checkout',
+    data: { checkout: { status: 'pending' } }
+  }, 2);
+  failed = finishFeatureRun(failed, undefined, 3);
+  const review = reviewFeatureRun(failed);
+  assert.equal(assessFeatureRun(failed), 'failed');
+  assert.equal(review.ready, false);
+  assert.ok(review.findings.some((finding) => finding.kind === 'acceptance' && finding.severity === 'error'));
 });
 
 test('review finds missing gates and undeclared writes', () => {
@@ -192,6 +237,9 @@ test('exposes all Frontier package surfaces and workspace helpers', async () => 
   assert.equal(planResult.output.featureId, 'feature.example');
   const validateResult = await withConsoleSilenced(() => runCli(['validate-manifest', 'features/example-feature.json', '--cwd', dir, '--json'], process.cwd()));
   assert.equal(validateResult.status, 0);
+  const proofResult = await withConsoleSilenced(() => runCli(['proof', 'agent-runs/workspace-run.jsonl', '--cwd', dir, '--json'], process.cwd()));
+  assert.equal(proofResult.status, 1);
+  assert.equal(proofResult.output.kind, 'frontier.agent.feature-proof');
 });
 
 test('summarizes DOM devtools snapshots', () => {

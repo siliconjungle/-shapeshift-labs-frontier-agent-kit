@@ -45,6 +45,7 @@ export function createFrontierAgentEvidencePlan(manifest?: FeatureManifest): Evi
     'agent:init': 'frontier-agent-kit init',
     'agent:feature:new': 'frontier-agent-kit init-feature',
     'agent:run:summarize': 'frontier-agent-kit summarize',
+    'agent:run:proof': 'frontier-agent-kit proof',
     'test:evidence': 'npm test && npm run fuzz -- --cases 200',
     fuzz: 'node test/fuzz/agent-kit-fuzz.mjs --cases 1000',
     'bench:evidence': 'node benchmarks/agent-kit-benchmark.mjs --out benchmarks/results/agent-kit-latest.json',
@@ -107,4 +108,3 @@ function mergeManifestGates(defaults: readonly FeatureGate[], manifestGates: rea
   for (const gate of manifestGates) byId.set(gate.id, gate);
   return [...byId.values()];
 }
-

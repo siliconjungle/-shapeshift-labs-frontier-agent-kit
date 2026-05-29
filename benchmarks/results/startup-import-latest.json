@@ -1,6 +1,6 @@
 {
   "name": "startup-import",
-  "generatedAt": "2026-05-29T03:26:22.620Z",
+  "generatedAt": "2026-05-29T03:35:43.819Z",
   "node": "v26.1.0",
   "rows": [
     {
@@ -8,8 +8,8 @@
       "fixture": "root",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 2028.21,
-      "p95Us": 2028.21,
+      "medianUs": 1283.5,
+      "p95Us": 1283.5,
       "budgetUs": 50000
     },
     {
@@ -17,8 +17,8 @@
       "fixture": "frontier",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 1266.29,
-      "p95Us": 1266.29,
+      "medianUs": 814.75,
+      "p95Us": 814.75,
       "budgetUs": 50000
     },
     {
@@ -26,8 +26,8 @@
       "fixture": "logging",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 348.25,
-      "p95Us": 348.25,
+      "medianUs": 168.79,
+      "p95Us": 168.79,
       "budgetUs": 50000
     },
     {
@@ -35,8 +35,8 @@
       "fixture": "playwright",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 459.25,
-      "p95Us": 459.25,
+      "medianUs": 221.33,
+      "p95Us": 221.33,
       "budgetUs": 50000
     },
     {
@@ -44,8 +44,8 @@
       "fixture": "dom",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 640.83,
-      "p95Us": 640.83,
+      "medianUs": 166.12,
+      "p95Us": 166.12,
       "budgetUs": 50000
     },
     {
@@ -53,8 +53,8 @@
       "fixture": "evidence",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 403.37,
-      "p95Us": 403.37,
+      "medianUs": 129.12,
+      "p95Us": 129.12,
       "budgetUs": 50000
     },
     {
@@ -62,8 +62,8 @@
       "fixture": "package-map",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 512.5,
-      "p95Us": 512.5,
+      "medianUs": 210.12,
+      "p95Us": 210.12,
       "budgetUs": 50000
     },
     {
@@ -71,8 +71,8 @@
       "fixture": "node",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 1317.17,
-      "p95Us": 1317.17,
+      "medianUs": 629.75,
+      "p95Us": 629.75,
       "budgetUs": 50000
     }
   ]

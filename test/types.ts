@@ -1,10 +1,17 @@
 import {
   createFeatureRun,
+  createFeatureRunProof,
+  evaluateFeatureRunAcceptance,
   featureRunToMarkdownReport,
+  featureRunProofToMarkdown,
+  indexFeatureRun,
   planFeatureRun,
   recordFeatureStep,
   reviewFeatureRun,
   type FeatureManifest,
+  type FeatureRunAcceptanceResult,
+  type FeatureRunIndex,
+  type FeatureRunProof,
   type FeatureRun,
   type JsonValue
 } from '../src/index.js';
@@ -30,7 +37,11 @@ run = recordFeatureStep(run, {
 const records: FrontierAgentLogRecord[] = featureRunToLogRecords(run);
 const plan = planFeatureRun(manifest);
 const review = reviewFeatureRun(run);
+const acceptance: readonly FeatureRunAcceptanceResult[] = evaluateFeatureRunAcceptance(run);
+const index: FeatureRunIndex = indexFeatureRun(run);
+const proof: FeatureRunProof = createFeatureRunProof(run);
 const markdown = featureRunToMarkdownReport(run);
+const proofMarkdown = featureRunProofToMarkdown(proof);
 const pw = frontierPlaywrightEvidenceToEvents({ report: { queries: [{ id: 'q', count: 1 }] } });
 const dom = domDevtoolsSnapshotToEvidence({ trace: [{ kind: 'dom-write' }] });
 const evidencePlan = createFrontierAgentEvidencePlan(manifest);
@@ -38,7 +49,11 @@ const evidencePlan = createFrontierAgentEvidencePlan(manifest);
 void records;
 void plan;
 void review;
+void acceptance;
+void index;
+void proof;
 void markdown;
+void proofMarkdown;
 void pw;
 void dom;
 void evidencePlan;

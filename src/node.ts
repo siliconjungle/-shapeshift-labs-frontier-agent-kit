@@ -3,7 +3,9 @@ import path from 'node:path';
 import {
   createFeatureRun,
   createStableId,
+  createFeatureRunProof,
   featureRunReviewToMarkdown,
+  featureRunProofToMarkdown,
   featureRunFromJsonl,
   featureRunToMarkdownReport,
   featureRunToJsonl,
@@ -209,6 +211,18 @@ export async function runCli(argv = process.argv.slice(2), cwd = process.cwd()):
     }
     return { status: review.ready ? 0 : 1, output: review as unknown as JsonObject };
   }
+  if (command === 'proof') {
+    const runPath = args._[1];
+    if (!runPath) throw new Error('missing run path');
+    const run = readFeatureRunFile(path.resolve(root, runPath));
+    const proof = createFeatureRunProof(run);
+    if (args.markdown) {
+      console.log(featureRunProofToMarkdown(proof));
+    } else {
+      print(proof, Boolean(args.json));
+    }
+    return { status: proof.ready ? 0 : 1, output: proof as unknown as JsonObject };
+  }
   if (command === 'report') {
     const runPath = args._[1];
     if (!runPath) throw new Error('missing run path');
@@ -297,6 +311,7 @@ function printHelp(): void {
   frontier-agent-kit validate-manifest <features/feature.json> [--json]
   frontier-agent-kit summarize <agent-runs/run.json> [--json]
   frontier-agent-kit review <agent-runs/run.json> [--json|--markdown]
+  frontier-agent-kit proof <agent-runs/run.json> [--json|--markdown]
   frontier-agent-kit report <agent-runs/run.json> [--out report.md]
   frontier-agent-kit export-jsonl <agent-runs/run.json> [--out run.jsonl]
 `);

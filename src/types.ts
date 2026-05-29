@@ -256,6 +256,37 @@ export interface FeatureRunSummary {
   readonly warnings: readonly string[];
 }
 
+export type FeatureRunAcceptanceStatus = 'passed' | 'failed' | 'missing' | 'unknown';
+
+export interface FeatureRunAcceptanceResult {
+  readonly id: string;
+  readonly source: FeatureAcceptanceCriterion['source'];
+  readonly required: boolean;
+  readonly status: FeatureRunAcceptanceStatus;
+  readonly message: string;
+  readonly observed?: JsonValue;
+  readonly expected?: JsonValue;
+  readonly evidenceIds?: readonly string[];
+  readonly checkpointId?: string;
+  readonly gateId?: string;
+}
+
+export interface FeatureRunIndex {
+  readonly evidenceById: Readonly<Record<string, EvidenceEvent>>;
+  readonly evidenceByKind: Readonly<Record<string, readonly string[]>>;
+  readonly evidenceBySource: Readonly<Record<string, readonly string[]>>;
+  readonly evidenceByPackage: Readonly<Record<string, readonly string[]>>;
+  readonly evidenceByStep: Readonly<Record<string, readonly string[]>>;
+  readonly gatesById: Readonly<Record<string, GateResult>>;
+  readonly stepsById: Readonly<Record<string, FeatureStep>>;
+  readonly latestCheckpoint?: FeatureCheckpoint;
+  readonly declaredPackages: readonly string[];
+  readonly observedPackages: readonly string[];
+  readonly packages: readonly string[];
+  readonly declaredPaths: readonly string[];
+  readonly touchedPaths: readonly string[];
+}
+
 export type FeatureRunPlanStepKind =
   | 'inspect'
   | 'checkpoint'
@@ -296,6 +327,7 @@ export type FeatureRunReviewFindingKind =
   | 'package'
   | 'path'
   | 'evidence'
+  | 'acceptance'
   | 'gate'
   | 'status';
 
@@ -319,6 +351,38 @@ export interface FeatureRunReview {
   readonly ready: boolean;
   readonly generatedAt: number;
   readonly summary: FeatureRunSummary;
+  readonly acceptance: readonly FeatureRunAcceptanceResult[];
+  readonly findings: readonly FeatureRunReviewFinding[];
+  readonly nextActions: readonly string[];
+}
+
+export interface FeatureRunProofEvidenceSummary {
+  readonly count: number;
+  readonly kinds: readonly string[];
+  readonly sources: readonly string[];
+  readonly packages: readonly string[];
+}
+
+export interface FeatureRunProofCheckpointSummary {
+  readonly count: number;
+  readonly latestId?: string;
+  readonly latestLabel?: string;
+  readonly latestTime?: number;
+}
+
+export interface FeatureRunProof {
+  readonly kind: 'frontier.agent.feature-proof';
+  readonly version: 1;
+  readonly runId: string;
+  readonly featureId: string;
+  readonly generatedAt: number;
+  readonly status: FeatureRunStatus;
+  readonly ready: boolean;
+  readonly summary: FeatureRunSummary;
+  readonly acceptance: readonly FeatureRunAcceptanceResult[];
+  readonly gates: readonly GateResult[];
+  readonly evidence: FeatureRunProofEvidenceSummary;
+  readonly checkpoints: FeatureRunProofCheckpointSummary;
   readonly findings: readonly FeatureRunReviewFinding[];
   readonly nextActions: readonly string[];
 }

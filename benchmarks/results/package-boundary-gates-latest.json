@@ -1,6 +1,6 @@
 {
   "name": "package-boundary-gates",
-  "generatedAt": "2026-05-29T03:26:26.661Z",
+  "generatedAt": "2026-05-29T03:35:46.270Z",
   "node": "v26.1.0",
   "rows": [
     {
@@ -90,7 +90,7 @@
       "fixture": "npm-pack-dry-run",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "unpackedBytes": 205873
+      "unpackedBytes": 254222
     }
   ]
 }

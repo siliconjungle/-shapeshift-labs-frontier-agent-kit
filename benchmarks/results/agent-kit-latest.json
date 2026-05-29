@@ -1,6 +1,6 @@
 {
   "name": "frontier-agent-kit",
-  "generatedAt": "2026-05-29T03:26:20.616Z",
+  "generatedAt": "2026-05-29T03:35:42.718Z",
   "node": "v26.1.0",
   "rows": [
     {
@@ -8,8 +8,8 @@
       "fixture": "create-feature-run-1000",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 1256.33,
-      "p95Us": 2259.88,
+      "medianUs": 1001.42,
+      "p95Us": 1965.54,
       "rounds": 80
     },
     {
@@ -17,8 +17,8 @@
       "fixture": "record-steps-and-evidence-1000",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 9925,
-      "p95Us": 16267.33,
+      "medianUs": 6759.25,
+      "p95Us": 9409.33,
       "rounds": 80
     },
     {
@@ -26,8 +26,8 @@
       "fixture": "jsonl-export-1000-events",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 3168.08,
-      "p95Us": 3400.17,
+      "medianUs": 2362.13,
+      "p95Us": 2558.42,
       "rounds": 80
     },
     {
@@ -35,8 +35,8 @@
       "fixture": "redact-1000-events",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 6842.5,
-      "p95Us": 11657.17,
+      "medianUs": 3584.54,
+      "p95Us": 4063.83,
       "rounds": 80
     },
     {
@@ -44,8 +44,8 @@
       "fixture": "log-records-1000-events",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 4187.21,
-      "p95Us": 6608.71,
+      "medianUs": 2161.42,
+      "p95Us": 2322.67,
       "rounds": 80
     },
     {
@@ -53,8 +53,35 @@
       "fixture": "review-run-1000-events",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 4101.79,
-      "p95Us": 5872.12,
+      "medianUs": 2198.79,
+      "p95Us": 2582.87,
+      "rounds": 80
+    },
+    {
+      "category": "agent-kit",
+      "fixture": "index-run-1000-events",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 2195.92,
+      "p95Us": 2351.13,
+      "rounds": 80
+    },
+    {
+      "category": "agent-kit",
+      "fixture": "evaluate-acceptance-1000-events",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 2257.5,
+      "p95Us": 3382.92,
+      "rounds": 80
+    },
+    {
+      "category": "agent-kit",
+      "fixture": "proof-markdown-1000-events",
+      "library": "@shapeshift-labs/frontier-agent-kit",
+      "status": "ok",
+      "medianUs": 2332.42,
+      "p95Us": 2771.67,
       "rounds": 80
     },
     {
@@ -62,8 +89,8 @@
       "fixture": "markdown-report-1000-events",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 4848.96,
-      "p95Us": 8019.87,
+      "medianUs": 2252.37,
+      "p95Us": 2712.42,
       "rounds": 80
     },
     {
@@ -71,8 +98,8 @@
       "fixture": "jsonl-record-iterator-1000-events",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 4313.21,
-      "p95Us": 6116.87,
+      "medianUs": 2115,
+      "p95Us": 2258.37,
       "rounds": 80
     },
     {
@@ -80,8 +107,8 @@
       "fixture": "plan-feature-run-1000",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 1332.58,
-      "p95Us": 2402.62,
+      "medianUs": 634.96,
+      "p95Us": 972.58,
       "rounds": 80
     },
     {
@@ -89,8 +116,8 @@
       "fixture": "summarize-patch-1000-ops",
       "library": "@shapeshift-labs/frontier-agent-kit",
       "status": "ok",
-      "medianUs": 201.04,
-      "p95Us": 343.88,
+      "medianUs": 102.71,
+      "p95Us": 191.29,
       "rounds": 80
     }
   ]

@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-29T03:26:27.516Z",
+  "generatedAt": "2026-05-29T03:35:46.815Z",
   "projectName": "@shapeshift-labs/frontier-agent-kit",
-  "noteCount": 3,
-  "benchmarkRowCount": 30,
-  "benchmarkFixtureCount": 30,
+  "noteCount": 4,
+  "benchmarkRowCount": 33,
+  "benchmarkFixtureCount": 33,
   "notes": [
     {
       "kind": "iteration",
@@ -70,6 +70,16 @@
       ]
     },
     {
+      "kind": "iteration",
+      "title": "002 Acceptance Proof Index",
+      "sourcePath": "iterations/002-acceptance-proof-index.md",
+      "verdict": "logged",
+      "tags": [],
+      "decision": "",
+      "summary": "## Goal",
+      "artifacts": []
+    },
+    {
       "kind": "research",
       "title": "Frontier Package Surface Review",
       "sourcePath": "research/frontier-package-surfaces.md",
@@ -96,11 +106,33 @@
     }
   ],
   "benchmarkMap": {
-    "rowCount": 30,
+    "rowCount": 33,
     "fixtures": [
       {
         "category": "agent-kit",
         "fixture": "create-feature-run-1000",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "evaluate-acceptance-1000-events",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "index-run-1000-events",
         "rows": 1,
         "sources": [
           "benchmarks/results/agent-kit-latest.json"
@@ -156,6 +188,17 @@
       {
         "category": "agent-kit",
         "fixture": "plan-feature-run-1000",
+        "rows": 1,
+        "sources": [
+          "benchmarks/results/agent-kit-latest.json"
+        ],
+        "statuses": {
+          "ok": 1
+        }
+      },
+      {
+        "category": "agent-kit",
+        "fixture": "proof-markdown-1000-events",
         "rows": 1,
         "sources": [
           "benchmarks/results/agent-kit-latest.json"

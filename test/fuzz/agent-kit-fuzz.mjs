@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import {
   createFeatureRun,
+  createFeatureRunProof,
+  evaluateFeatureRunAcceptance,
   featureRunFromJsonl,
+  featureRunProofToMarkdown,
   featureRunToJsonl,
+  indexFeatureRun,
   iterateFeatureRunJsonlRecords,
   planFeatureRun,
   queryFeatureEvidence,
@@ -55,6 +59,11 @@ for (let i = 0; i < cases; i++) {
   assert.equal(restored.id, run.id);
   assert.equal(restored.steps.length, run.steps.length);
   assert.equal(restored.evidence.length, run.evidence.length);
+  const index = indexFeatureRun(restored);
+  assert.equal(Object.keys(index.stepsById).length, restored.steps.length);
+  assert.equal(evaluateFeatureRunAcceptance(restored).length, restored.manifest.acceptance?.length ?? 0);
+  const proof = createFeatureRunProof(restored);
+  assert.match(featureRunProofToMarkdown(proof), /Frontier Feature Proof/);
   const redacted = redactFeatureRun(restored);
   const event = queryFeatureEvidence(redacted, { kind: 'fuzz.event' })[0];
   assert.equal(event.data.token, '[redacted]');

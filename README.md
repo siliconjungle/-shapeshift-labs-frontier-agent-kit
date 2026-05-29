@@ -25,11 +25,15 @@ The root import is dependency-light and JSON-only:
 ```ts
 import {
   createFeatureRun,
+  createFeatureRunProof,
+  evaluateFeatureRunAcceptance,
   planFeatureRun,
   recordFeatureStep,
   recordEvidence,
   reviewFeatureRun,
+  indexFeatureRun,
   featureRunToJsonl,
+  featureRunProofToMarkdown,
   featureRunToMarkdownReport
 } from '@shapeshift-labs/frontier-agent-kit';
 ```
@@ -52,8 +56,10 @@ Agents should start with a plan, then produce a run, then produce a review:
 import {
   createFeatureRun,
   finishFeatureRun,
+  createFeatureRunProof,
   planFeatureRun,
   reviewFeatureRun,
+  featureRunProofToMarkdown,
   featureRunToMarkdownReport
 } from '@shapeshift-labs/frontier-agent-kit';
 
@@ -64,7 +70,9 @@ let run = createFeatureRun(manifest, { actor: { id: 'codex', kind: 'ai' } });
 
 run = finishFeatureRun(run);
 const review = reviewFeatureRun(run);
+const proof = createFeatureRunProof(run);
 const markdown = featureRunToMarkdownReport(run);
+const proofMarkdown = featureRunProofToMarkdown(proof);
 ```
 
 Humans should read the manifest, the run report, and the review findings:
@@ -72,6 +80,7 @@ Humans should read the manifest, the run report, and the review findings:
 - The manifest says what the feature intended to touch.
 - The plan says what evidence and gates should exist.
 - The run says what actually happened.
+- The proof says whether required acceptance criteria were observed, matched, and backed by gates or evidence.
 - The review highlights missing gates, missing evidence, undeclared package usage, undeclared path writes, and failed/blocked steps.
 
 ## Feature Runs
@@ -79,7 +88,10 @@ Humans should read the manifest, the run report, and the review findings:
 ```ts
 import {
   createFeatureRun,
+  createFeatureRunProof,
+  evaluateFeatureRunAcceptance,
   finishFeatureRun,
+  recordCheckpoint,
   recordFeatureStep,
   recordGateResult
 } from '@shapeshift-labs/frontier-agent-kit';
@@ -113,6 +125,11 @@ run = recordFeatureStep(run, {
   ]
 });
 
+run = recordCheckpoint(run, {
+  label: 'checkout committed',
+  data: { checkout: { status: 'paid' } }
+});
+
 run = recordGateResult(run, {
   id: 'unit',
   command: 'npm test',
@@ -121,6 +138,8 @@ run = recordGateResult(run, {
 });
 
 run = finishFeatureRun(run);
+const acceptance = evaluateFeatureRunAcceptance(run);
+const proof = createFeatureRunProof(run);
 ```
 
 ## CLI
@@ -134,6 +153,7 @@ frontier-agent-kit plan features/feature.checkout.submit.json --json
 frontier-agent-kit validate-manifest features/feature.checkout.submit.json --json
 frontier-agent-kit summarize agent-runs/run-id.json --json
 frontier-agent-kit review agent-runs/run-id.json --markdown
+frontier-agent-kit proof agent-runs/run-id.json --markdown
 frontier-agent-kit report agent-runs/run-id.json --out agent-runs/run-id.md
 frontier-agent-kit export-jsonl agent-runs/run-id.json --out agent-runs/run-id.jsonl
 ```
@@ -176,6 +196,7 @@ The two layers meet through structured artifacts:
 
 - Feature manifests name Frontier packages, paths, actions, UI bindings, acceptance criteria, and gates.
 - Feature runs record steps, tool calls, evidence events, checkpoints, and gate results.
+- Feature proofs combine indexed evidence, checkpoint acceptance, gate results, review findings, and next actions into one handoff artifact.
 - Evidence Kit indexes the research notes, benchmark JSON, fuzz corpus, package-boundary rows, and decision records that justify those feature runs.
 
 ## API
@@ -189,8 +210,12 @@ Root:
 - `recordGateResult(run, result)`
 - `finishFeatureRun(run, status?, now?)`
 - `planFeatureRun(manifest, now?)`
+- `indexFeatureRun(run)`
+- `evaluateFeatureRunAcceptance(run)`
 - `reviewFeatureRun(run, now?)`
 - `featureRunReviewToMarkdown(review)`
+- `createFeatureRunProof(run, now?)`
+- `featureRunProofToMarkdown(proof)`
 - `featureRunToMarkdownReport(run)`
 - `iterateFeatureRunJsonlRecords(run)`
 - `featureRunToJsonl(run)` / `featureRunFromJsonl(jsonl)`
